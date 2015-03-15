@@ -46,15 +46,18 @@ function evaluate(ast) {
   }
 
   var maybeMacro = macroTable[ast[0]];
+
   if(maybeMacro) {
     ast.shift();
     return maybeMacro(ast);
   }
 
-  var evaledAST = ast.map(evaluate);
 
+  var evaledAST = ast.map(evaluate);
   var func = evaledAST.shift();
+
   if(typeof func !== "function") throw new Error("Identifier '" + func + "' isn't a function.");
+
   return func(evaledAST);
 }
 
@@ -91,7 +94,7 @@ function checkNumArgs(args, num) {
 var localStack = [{}];
 
 var macroTable = {
-  "def": function(args) {
+  "define": function(args) {
     var name = args[0];
 
     if(symbolTable.hasOwnProperty(name) || macroTable.hasOwnProperty(name)) throw new Error("Reserved, can't redefine " + name);
@@ -100,7 +103,7 @@ var macroTable = {
     localStack[localStack.length - 1][name] = res;
     return res;
   },
-  "fn": function(args) {
+  "lambda": function(args) {
     var params = args[0];
     if(!isList(params)) throw new Error("Params should be a list of arguments.");
 
@@ -125,7 +128,12 @@ var macroTable = {
         delete map["..."];
       }
 
-      return evaluate(swapInAST(body, map));
+      // create a new scope for that function
+      localStack.push(map);
+      var res = evaluate(body);
+      localStack.pop();
+
+      return res;
     };
   },
   "quote": function(args) {
