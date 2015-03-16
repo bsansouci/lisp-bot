@@ -73,20 +73,6 @@ function isList(a) {
   return a instanceof Array;
 }
 
-function swapInAST(body, map) {
-  var newBody = [];
-  for (var i = 0; i < body.length; i++) {
-    if(isList(body[i])) {
-      newBody.push(swapInAST(body[i], map));
-    } else {
-      if(map[body[i]]) newBody.push(map[body[i]]);
-      else newBody.push(body[i]);
-    }
-  }
-
-  return newBody;
-}
-
 function checkNumArgs(args, num) {
   if(args.length !== num) throw new Error("Improper number of arguments. Expected: " + num + ", got: " + args.length);
 }
