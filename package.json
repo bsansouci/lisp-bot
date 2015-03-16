@@ -1,0 +1,27 @@
+{
+  "name": "lisp-bot",
+  "version": "0.0.0",
+  "description": "Mark Thuckerbot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "rlwrap node cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bsansouci/lisp-bot.git"
+  },
+  "keywords": [
+    "lisp"
+  ],
+  "author": "Avery Morin (https://github.com/Schmavery/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bsansouci/lisp-bot/issues"
+  },
+  "homepage": "https://github.com/bsansouci/lisp-bot",
+  "dependencies": {
+    "facebook-chat-api": "~0.1.4",
+    "request": "~2.53.0"
+  }
+}
