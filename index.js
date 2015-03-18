@@ -69,7 +69,6 @@ function startBot(api) {
 
   function parseLisp(msg, sendReply) {
     var inTxt = "";
-    var outTxt = "";
 
     if ((/^\/\(.+\)$/).test(msg)){
       inTxt = msg.slice(1);
@@ -79,10 +78,12 @@ function startBot(api) {
       inTxt = msg;
     }
 
+    var outTxt = "";
     if (inTxt.length > 0){
       try {
         var AST = lisp.parse(inTxt);
-        outTxt = JSON.stringify(lisp.evaluate(AST));
+        var output = lisp.evaluate(AST);
+        outTxt = lisp.prettyPrint(output);
       } catch (e) {
         outTxt = e.toString();
       }

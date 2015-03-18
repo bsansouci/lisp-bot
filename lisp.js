@@ -5,6 +5,7 @@ function parse(str) {
   sourceString = str;
   return parseHelper(str, 0);
 }
+
 function parseHelper(str, charPos) {
   if(str.charAt(0) === "'") return [Node("quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1)];
   if(str.charAt(0) === "`") return [Node("syntax-quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1)];
@@ -83,10 +84,8 @@ function evaluate(ast) {
   if(maybeLocalMacro) {
     return maybeLocalMacro.value(ast.slice(1));
   }
-
   var evaledAST = ast.map(evaluate);
   var func = evaledAST.shift();
-
   if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0]);
 
   return func.value(evaledAST);
@@ -166,7 +165,6 @@ var macroTable = {
     var body = args[1];
 
     var variadicArgs = params.length > 1 && params[params.length - 1].value === "...";
-
     return Node(function(arr) {
       if(!variadicArgs && arr.length !== params.length) throw new Error("Improper number of arguments. Expected: " + params.length + ", got: " + arr.length);
 
@@ -176,10 +174,9 @@ var macroTable = {
       }
 
       if(variadicArgs) {
-        map[params[params.length - 2]] = [Node("quote", "identifier", arr[params.length - 2].charPos), arr.slice(params.length - 2)];
+        map[params[params.length - 2].value] = arr.slice(params.length - 2);
         delete map["..."];
       }
-
       // create a new scope for that function
       localStack.push(map);
       macroStack.push({});
@@ -232,12 +229,8 @@ var macroTable = {
     }
     return evaluate(args[2]);
   },
-  "nil?": function(args) {
-    for (var i = 0; i < args.length; i++) {
-      var e = evaluate(args[i]);
-      if(!isList(e) || e.length !== 0) return Node(false, "boolean", e.charPos);
-    }
-    return Node(true, "boolean", args.length > 0 ? args[0].charPos : {});
+  "and": function(args) {
+
   },
   "load": function(args) {
     var name = args[0].value;
@@ -276,15 +269,23 @@ var macroTable = {
 
 var symbolTable = {
   "+": function(args) {
+    if(args.length === 0) return [];
+
     return Node(args.reduce(function(acc, v) {return acc + v.value;}, 0), args[0].type, args[0].charPos);
   },
   "-": function(args) {
+    if(args.length === 0) return [];
+
     return Node(args.reduce(function(acc, v) {return acc - v.value;}, 0), args[0].type, args[0].charPos);
   },
   "*": function(args) {
+    if(args.length === 0) return [];
+
     return Node(args.reduce(function(acc, v) {return acc * v.value;}, 1), args[0].type, args[0].charPos);
   },
   "/": function(args) {
+    if(args.length === 0) return [];
+
     return Node(args.reduce(function(acc, v) {return acc / v.value;}, 1), args[0].type, args[0].charPos);
   },
   "cdr": function(args) {
@@ -292,15 +293,12 @@ var symbolTable = {
 
     var rest = args[0];
     if(!isList(rest)) throw new Error("cdr expects a list as unique argument.");
-
     return rest.slice(1);
   },
   "car": function(args) {
     checkNumArgs(args, 1);
-
     var rest = args[0];
     if(!isList(rest)) throw new Error("car expects a list as unique argument.");
-
     return rest[0];
   },
   "cons": function(args) {
@@ -322,6 +320,35 @@ var symbolTable = {
     if(typeof func !== "function") throw new Error("First argument should be a function.");
 
     return func(arr);
+  },
+  "map": function(args) {
+    if(args.length < 2) return [];
+
+    var f = args[0];
+    var rest = args.slice(1);
+    var min = Infinity;
+    for (var i = 1; i < args.length; i++) {
+      if(args[i].length < min) {
+        min = args[i].length;
+      }
+    }
+    var ret = new Array(min);
+    for (i = 0; i < min; i++) {
+      var argsToFunc = new Array(rest.length);
+      for (var j = 0; j < rest.length; j++) {
+        argsToFunc[j] = rest[j][i];
+      }
+      ret[i] = f.value(argsToFunc);
+    }
+
+    return ret;
+  },
+  "nil?": function(args) {
+    for (var i = 0; i < args.length; i++) {
+      var e = evaluate(args[i]);
+      if(!isList(e) || e.length !== 0) return Node(false, "boolean", e.charPos);
+    }
+    return Node(true, "boolean", args.length > 0 ? args[0].charPos : {});
   }
 };
 

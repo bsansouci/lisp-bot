@@ -1,0 +1,42 @@
+(define-macro ; (lambda (x ...) ()))
+
+(define not (lambda (expr)
+  (cond expr
+    false
+    true)))
+
+(define len (lambda (coll)
+  (cond (nil? coll)
+    0
+    (+ 1 (len (cdr coll))))))
+
+(define even-len? (lambda (coll)
+  (cond (nil? coll)
+    true
+    (not (even-len? (cdr coll))))))
+
+(define every-other-odd
+  (lambda (coll)
+    (cond (nil? coll)
+      ()
+      (cond (even-len? coll)
+        (every-other-odd (cdr coll))
+        (cons (car coll) (every-other-odd (cdr coll)))))))
+
+(define every-other-even
+  (lambda (coll)
+    (cond (nil? coll)
+      ()
+      (cond (even-len? coll)
+        (cons (car coll) (every-other-even (cdr coll)))
+        (every-other-even (cdr coll))))))
+
+(define-macro let
+  (lambda (vars body)
+    `((lambda ~(every-other-even vars) ~body) ~@(every-other-odd vars))))
+
+(define ->>
+  (lambda (data func ...)
+          (cond (nil? func)
+                data
+                (->> ((car func) data) (cdr func)))))
