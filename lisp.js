@@ -112,6 +112,7 @@ function Node(value, type, charPos) {
 }
 
 function prettyPrint(node) {
+  if (typeof node === "undefined") return "undefined";
   if(!isList(node)) {
     switch(node.type) {
       case "identifier":

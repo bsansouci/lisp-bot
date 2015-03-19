@@ -41,12 +41,14 @@
 
 (define ->>
   (lambda (data func ...)
-          (if (nil? func)
-                data
-                (->> ((car func) data) (cdr func)))))
+    (if (nil? func)
+      data
+      (->> ((car func) data) (cdr func)))))
 
 (define-macro cond 
   (lambda (clause ...)
-    `(if ~(car (car clause))
+  `(if ~@(nil? clause) 
+    ()
+    (if ~(car (car clause))
 	  ~(car (cdr (car clause)))
-	  (cond (cdr ~@clause)))))
+	  (cond ~@(cdr clause))))))
