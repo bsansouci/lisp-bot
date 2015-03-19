@@ -31,7 +31,7 @@ function parseHelper(str, charPos) {
 
     // Strings
     if(str.charAt(0) === "\"" && str.charAt(str.length - 1) === "\"") {
-      return Node(str.substring(1, str.length - 2), "string", charPos);
+      return Node(str.substring(1, str.length - 1), "string", charPos);
     }
 
     return Node(str, "identifier", charPos);
@@ -131,6 +131,10 @@ function prettyPrint(node) {
 }
 
 function throwError(str, node) {
+  for (;isList(node)&&node.length>0;node=node[0]);
+  if (!node || isList(node)) {
+    node = Node("", "", -1);
+  }
   throw new Error("Error @ char " + node.charPos + ": " + str + "\nIn region: "+sourceString.substring(Math.max(0, node.charPos - 15), node.charPos - 1) + ">>" + sourceString.substring(node.charPos - 1, Math.min(sourceString.length, node.charPos + 15)));
 }
 
@@ -180,7 +184,7 @@ var macroTable = {
       // create a new scope for that function
       localStack.push(map);
       macroStack.push({});
-      if(localStack.length > 1024) return throwError("Stack overflow > 1024", body[0].charPos);
+      if(localStack.length > 1024) return throwError("Stack overflow > 1024", body[0]);
       var res = evaluate(body);
       localStack.pop();
       macroStack.pop();
@@ -221,16 +225,13 @@ var macroTable = {
     };
     return traverse(args[0]);
   },
-  "cond": function(args) {
+  "if": function(args) {
     var bool = evaluate(args[0]);
-    if(bool.type !== "boolean") throw new Error("Cond first argument has to evaluate to a boolean");
+    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean");
     if(bool.value) {
       return evaluate(args[1]);
     }
     return evaluate(args[2]);
-  },
-  "and": function(args) {
-
   },
   "load": function(args) {
     var name = args[0].value;
@@ -264,7 +265,8 @@ var macroTable = {
     }
     console.log("--------------------");
     return [];
-  }
+  },
+
 };
 
 var symbolTable = {
@@ -343,14 +345,42 @@ var symbolTable = {
 
     return ret;
   },
-  "nil?": function(args) {
-    for (var i = 0; i < args.length; i++) {
-      var e = evaluate(args[i]);
-      if(!isList(e) || e.length !== 0) return Node(false, "boolean", e.charPos);
+  "equal?" : function(args) {
+    if (args.length < 2) throwError("", args);
+    for (var i = 1; i < args.length; i++){
+
+      if (!areStructurallyEqual(args[i], args[0])) return Node(false, "boolean", -2);
     }
-    return Node(true, "boolean", args.length > 0 ? args[0].charPos : {});
+    return Node(true, "boolean", args);
+  },
+  "and": function(args) {
+    for (var i = 0; i < args.length; i++){
+      if (isList(args[i]) || !args[i].value) return Node(false, "boolean", -2);
+    }
+    return Node(true, "boolean", -2);
+  },
+  "debug": function(args){
+    checkNumArgs(args, 2);
+    console.log(args[0].value);
+    return args[1];
   }
 };
+
+function areStructurallyEqual(obj1, obj2){
+  if (isList(obj1) && isList(obj2)){
+    if (obj1.length != obj2.length) return false;
+    else {
+      for (var i = 0; i < obj1.length; i++){
+        if (!areStructurallyEqual(obj1[i], obj2[i])) return false;
+      }
+      return true;
+    }
+  } else {
+    if (obj1.type != obj2.type) return false;
+    if (obj1.value != obj2.value) return false;
+    return true;
+  }
+}
 
 module.exports = {
   parse: parse,
