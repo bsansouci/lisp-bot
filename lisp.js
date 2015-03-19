@@ -210,13 +210,13 @@ var macroTable = {
     var traverse = function(node) {
       if(!isList(node)) return node;
 
-      if(node[0].value === "unquote") {
+      if(node.length > 0 && node[0].value === "unquote") {
         return evaluate(node[1]);
       }
 
       var newTree = [];
       for (var i = 0; i < node.length; i++) {
-        if(isList(node[i]) && node[i][0].value === "unquote-splice") {
+        if(isList(node[i]) && node[i].length > 0 && node[i][0].value === "unquote-splice") {
           newTree = newTree.concat(evaluate(node[i][1]));
         } else newTree.push(traverse(node[i]));
       }
@@ -227,7 +227,7 @@ var macroTable = {
   },
   "if": function(args) {
     var bool = evaluate(args[0]);
-    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean");
+    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
     if(bool.value) {
       return evaluate(args[1]);
     }
@@ -265,8 +265,7 @@ var macroTable = {
     }
     console.log("--------------------");
     return [];
-  },
-
+  }
 };
 
 var symbolTable = {
@@ -361,12 +360,13 @@ var symbolTable = {
   },
   "debug": function(args){
     checkNumArgs(args, 2);
-    console.log(args[0].value);
+    console.log("Debug: " + prettyPrint(args[0]));
     return args[1];
   }
 };
 
 function areStructurallyEqual(obj1, obj2){
+  if (obj1 === obj2) return true;
   if (isList(obj1) && isList(obj2)){
     if (obj1.length != obj2.length) return false;
     else {
