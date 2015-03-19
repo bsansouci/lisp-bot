@@ -37,6 +37,6 @@
 
 (define ->>
   (lambda (data func ...)
-          (cond (nil? func)
+          (cond (nil? (car func))
                 data
                 (->> ((car func) data) (cdr func)))))
