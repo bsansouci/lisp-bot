@@ -85,10 +85,10 @@ function evaluate(ast) {
     return maybeLocalMacro.value(ast.slice(1));
   }
   var evaledAST = ast.map(evaluate);
-  var func = evaledAST.shift();
+  var func = evaledAST[0];
   if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0]);
 
-  return func.value(evaledAST);
+  return func.value(evaledAST.slice(1));
 }
 
 function getLocal(stack, name) {
@@ -112,6 +112,7 @@ function Node(value, type, charPos) {
 }
 
 function prettyPrint(node) {
+  if (typeof node === "undefined") return "undefined";
   if(!isList(node)) {
     switch(node.type) {
       case "identifier":
@@ -146,6 +147,16 @@ var localStack = [{}];
 var macroStack = [{}];
 
 var macroTable = {
+  "docs": function(args) {
+    if(args.length !== 1) throw new Error("Wrong number of arguments. Please give only one argument");
+    var maybeMacro = getLocal(macroStack, args[0].value);
+    if(maybeMacro) return Node(maybeMacro.docs, "string", args[0].charPos);
+
+    var maybeFunc = getLocal(localStack, args[0].value);
+    if(maybeFunc) return Node(maybeFunc.docs, "string", args[0].charPos);
+
+    throw new Error("Undefined identifier.");
+  },
   "define": function(args) {
     var name = args[0];
     if(name.type !== "identifier") {
@@ -154,7 +165,18 @@ var macroTable = {
 
     if(symbolTable.hasOwnProperty(name.value) || macroTable.hasOwnProperty(name.value)) throwError("Reserved, can't redefine " + name.value, name);
 
-    var res = evaluate(args[1]);
+    var body = args[1];
+    var docs = "No docs";
+    // Adding optional comments when defining functions
+    if(body.type === "string" && args.length > 2) {
+      docs = body.value;
+      body = args[2];
+    }
+
+    var res = evaluate(body);
+    // Attach the docs to the object inside the localstack
+    res.docs = docs;
+
     localStack[localStack.length - 1][name.value] = res;
     return res;
   },
@@ -174,13 +196,13 @@ var macroTable = {
 
       var map = {};
       for (var i = 0; i < params.length; i++) {
-        map[params[i].value] = arr[i];
+        map[params[i].value] = arr[i] ? arr[i] : [];
       }
-
       if(variadicArgs) {
         map[params[params.length - 2].value] = arr.slice(params.length - 2);
         delete map["..."];
       }
+
       // create a new scope for that function
       localStack.push(map);
       macroStack.push({});
@@ -188,23 +210,39 @@ var macroTable = {
       var res = evaluate(body);
       localStack.pop();
       macroStack.pop();
-
       return res;
     }, "function", params.charPos);
   },
   "quote": function(args) {
     return args[0];
   },
+  "unquote": function(args) {
+    if(args.length === 0) throwError("The macro unquote takes one argument.");
+
+    return evaluate(args[0]);
+  },
   "define-macro": function(args) {
     var name = args[0];
     var body = args[1];
+
+    var docs = "No docs";
+
+    // Adding optional comments when defining functions
+    if(body.type === "string" && args.length > 2) {
+      docs = body.value;
+      body = args[2];
+    }
+
     var f = macroTable.lambda(body.slice(1));
 
-    macroStack[0][name.value] = Node(function(arg) {
+    macroStack[macroStack.length - 1][name.value] = Node(function(arg) {
       return evaluate(f.value(arg));
     }, "function", name.charPos);
 
-    return macroStack[0][name.value];
+    // Attach the docs to the object inside the localstack
+    macroStack[macroStack.length - 1][name.value].docs = docs;
+
+    return macroStack[macroStack.length - 1][name.value];
   },
   "syntax-quote": function(args) {
     var traverse = function(node) {
@@ -226,6 +264,8 @@ var macroTable = {
     return traverse(args[0]);
   },
   "if": function(args) {
+    if(args.length < 2) throwError("Too few arguments to if.");
+
     var bool = evaluate(args[0]);
     if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
     if(bool.value) {
@@ -322,28 +362,6 @@ var symbolTable = {
 
     return func(arr);
   },
-  "map": function(args) {
-    if(args.length < 2) return [];
-
-    var f = args[0];
-    var rest = args.slice(1);
-    var min = Infinity;
-    for (var i = 1; i < args.length; i++) {
-      if(args[i].length < min) {
-        min = args[i].length;
-      }
-    }
-    var ret = new Array(min);
-    for (i = 0; i < min; i++) {
-      var argsToFunc = new Array(rest.length);
-      for (var j = 0; j < rest.length; j++) {
-        argsToFunc[j] = rest[j][i];
-      }
-      ret[i] = f.value(argsToFunc);
-    }
-
-    return ret;
-  },
   "equal?" : function(args) {
     if (args.length < 2) throwError("", args);
     for (var i = 1; i < args.length; i++){
@@ -351,12 +369,6 @@ var symbolTable = {
       if (!areStructurallyEqual(args[i], args[0])) return Node(false, "boolean", -2);
     }
     return Node(true, "boolean", args);
-  },
-  "and": function(args) {
-    for (var i = 0; i < args.length; i++){
-      if (isList(args[i]) || !args[i].value) return Node(false, "boolean", -2);
-    }
-    return Node(true, "boolean", -2);
   },
   "debug": function(args){
     checkNumArgs(args, 2);

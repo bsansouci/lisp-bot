@@ -1,13 +1,36 @@
 (define-macro ; (lambda (x ...) ()))
 
 (define-macro nil?
+  "Takes a variadic number of arguments. Returns true if all the arguments are null. Returns true when given no arguments."
   (lambda (x ...)
     `(equal? () () ~@x)))
 
-(define not (lambda (expr)
-  (if expr
-    false
-    true)))
+
+(define not
+  (lambda (expr)
+    (if expr
+      false
+      true)))
+
+(define-macro and
+  (lambda (x args ...)
+    (if (nil? x)
+      true
+      `(if ~x (and ~@args) false))))
+
+(define-macro or
+  "Evaluates arguments from left to right until it hits one that evaluates to true. If none of them evaluates to true it will return false."
+  (lambda (x args ...)
+    (if (nil? x)
+      false
+      `(if ~x true (or ~@args)))))
+
+(; this should use map instead...)
+(define argsnil?
+  (lambda (args)
+    (or (nil? args)
+        (and (nil? (car args))
+             (argsnil? (cdr args))))))
 
 (define len (lambda (coll)
   (if (nil? coll)
@@ -41,12 +64,14 @@
 
 (define ->>
   (lambda (data func ...)
-          (if (nil? func)
-                data
-                (->> ((car func) data) (cdr func)))))
+    (if (nil? func)
+      data
+      (->> ((car func) data) (cdr func)))))
 
 (define-macro cond
   (lambda (clause ...)
-    `((if (nil? clause))if ~(car (car clause))
-      ~(car (cdr (car clause)))
-      (cond ~@(cdr clause)))))
+  `(if ~(nil? clause)
+    ()
+    (if ~(car (car clause))
+	  ~(car (cdr (car clause)))
+	  (cond ~@(cdr clause))))))
