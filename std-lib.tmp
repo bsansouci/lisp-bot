@@ -25,13 +25,6 @@
       false
       `(if ~x true (or ~@args)))))
 
-(; this should use map instead...)
-(define argsnil?
-  (lambda (args)
-    (or (nil? args)
-        (and (nil? (car args))
-             (argsnil? (cdr args))))))
-
 (define len (lambda (coll)
   (if (nil? coll)
     0

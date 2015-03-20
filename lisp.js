@@ -103,12 +103,27 @@ function isList(a) {
   return a instanceof Array;
 }
 
-function Node(value, type, charPos) {
-  return {
+function Node(value, type, charPos, extras) {
+  var node = {
     value: value,
     type: type,
     charPos: charPos
   };
+  if(extras) return merge(node, extras);
+
+  return node;
+}
+
+function merge(obj1, obj2) {
+  var ret = {};
+  for(var prop in obj1) {
+    if(obj1.hasOwnProperty(prop)) ret[prop] = obj1[prop];
+  }
+  for(var prop2 in obj2) {
+    if(obj2.hasOwnProperty(prop2)) ret[prop2] = obj2[prop2];
+  }
+
+  return ret;
 }
 
 function prettyPrint(node) {
@@ -235,12 +250,11 @@ var macroTable = {
 
     var f = macroTable.lambda(body.slice(1));
 
+    // Attach the docs to the object inside the localstack using the
+    // extras param in Node constructor
     macroStack[macroStack.length - 1][name.value] = Node(function(arg) {
       return evaluate(f.value(arg));
-    }, "function", name.charPos);
-
-    // Attach the docs to the object inside the localstack
-    macroStack[macroStack.length - 1][name.value].docs = docs;
+    }, "function", name.charPos, {docs: docs});
 
     return macroStack[macroStack.length - 1][name.value];
   },
