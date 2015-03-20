@@ -1,33 +1,37 @@
 (define-macro ; (lambda (x ...) ()))
 
+(define-macro nil?
+  (lambda (x ...)
+    `(equal? () () ~@x)))
+
 (define not (lambda (expr)
-  (cond expr
+  (if expr
     false
     true)))
 
 (define len (lambda (coll)
-  (cond (nil? coll)
+  (if (nil? coll)
     0
     (+ 1 (len (cdr coll))))))
 
 (define even-len? (lambda (coll)
-  (cond (nil? coll)
+  (if (nil? coll)
     true
     (not (even-len? (cdr coll))))))
 
 (define every-other-odd
   (lambda (coll)
-    (cond (nil? coll)
+    (if (nil? coll)
       ()
-      (cond (even-len? coll)
+      (if (even-len? coll)
         (every-other-odd (cdr coll))
         (cons (car coll) (every-other-odd (cdr coll)))))))
 
 (define every-other-even
   (lambda (coll)
-    (cond (nil? coll)
+    (if (nil? coll)
       ()
-      (cond (even-len? coll)
+      (if (even-len? coll)
         (cons (car coll) (every-other-even (cdr coll)))
         (every-other-even (cdr coll))))))
 
@@ -37,6 +41,12 @@
 
 (define ->>
   (lambda (data func ...)
-          (cond (nil? (car func))
+          (if (nil? func)
                 data
                 (->> ((car func) data) (cdr func)))))
+
+(define-macro cond
+  (lambda (clause ...)
+    `((if (nil? clause))if ~(car (car clause))
+      ~(car (cdr (car clause)))
+      (cond ~@(cdr clause)))))
