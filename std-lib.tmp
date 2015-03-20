@@ -5,7 +5,6 @@
   (lambda (x ...)
     `(equal? () () ~@x)))
 
-
 (define not
   (lambda (expr)
     (if expr
@@ -13,13 +12,14 @@
       true)))
 
 (define-macro and
+  "Evaluates arguments from left to right until it hits one that evaluates to false. If all of expressions evaluate to true, it will return true. Otherwise it will return false."
   (lambda (x args ...)
     (if (nil? x)
       true
       `(if ~x (and ~@args) false))))
 
 (define-macro or
-  "Evaluates arguments from left to right until it hits one that evaluates to true. If none of them evaluates to true it will return false."
+  "Evaluates arguments from left to right until it hits one that evaluates to true. If one of the expressions evaluate to true, it will return true. Otherwise it will return false."
   (lambda (x args ...)
     (if (nil? x)
       false
@@ -69,9 +69,9 @@
       (->> ((car func) data) (cdr func)))))
 
 (define-macro cond
-  (lambda (clause ...)
-  `(if ~(nil? clause)
-    ()
-    (if ~(car (car clause))
-	  ~(car (cdr (car clause)))
-	  (cond ~@(cdr clause))))))
+  (lambda (x clause ...)
+  `(if ~(nil? x)
+    '()
+    (if ~(car x)
+        ~(car (cdr x))
+        (cond ~@clause)))))
