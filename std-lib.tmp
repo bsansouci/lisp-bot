@@ -52,20 +52,35 @@
         (every-other-even (cdr coll))))))
 
 (define-macro let
+  "Todo"
   (lambda (vars body)
     `((lambda ~(every-other-even vars) ~body) ~@(every-other-odd vars))))
 
 (define-macro cond
-  (lambda (x clause ...)
-  `(if ~(nil? x)
-    '()
-    (if ~(car x)
-        ~(car (cdr x))
-        (cond ~@clause)))))
+  "Todo"
+  (lambda (x rest ...)
+  `(if ~(car x)
+       ~(car (cdr x))
+        (if ~(nil? rest)
+          ()
+          (cond ~@rest)))))
 
 (define-macro ->>
-  (lambda (data func ...)
+  "Usage: (->> x & funcs)
+
+  Threads the expr through the lambdas. Inserts x as the last item in the first form, making a list of it if it is not a list already. If there are more forms, inserts the first form as the last item in second form, etc. (from clojuredocs)"
+  (lambda (data rest ...)
     `(cond
-       (~(nil? data) ())
-       (~(nil? func) data)
-       (true (; (->> (~@(car func) data) ~(cdr func)))))))
+       (~(nil? rest) ~data)
+       (~(nil? (cdr rest)) (~@(car rest) ~data))
+       (true (->> (~@(car rest) ~data) ~@(cdr rest))))))
+
+(define-macro ->
+  "Usage: (-> x & forms)
+
+  Threads the expr through the forms. Inserts x as the second item in the first form, making a list of it if it is not a list already. If there are more forms, inserts the first form as the second item in second form, etc. (from clojuredocs)"
+  (lambda (data rest ...)
+    `(cond
+       (~(nil? rest) ~data)
+       (~(nil? (cdr rest)) (~(car (car rest)) ~data ~@(cdr (car rest))))
+       (true (->> (~@(car rest) ~data) ~@(cdr rest))))))

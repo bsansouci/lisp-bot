@@ -68,7 +68,6 @@ function evaluate(ast) {
     }
     var maybeLocal = getLocal(localStack, ast.value);
     if(maybeLocal) return maybeLocal;
-
     if(symbolTable.hasOwnProperty(ast.value)) return Node(symbolTable[ast.value], "function", ast.charPos);
 
     return throwError("Undeclared identifier " + ast.value, ast.charPos);
@@ -85,6 +84,7 @@ function evaluate(ast) {
     return maybeLocalMacro.value(ast.slice(1));
   }
   var evaledAST = ast.map(evaluate);
+
   var func = evaledAST[0];
   if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0].charPos);
 
@@ -203,7 +203,7 @@ var macroTable = {
 
     var variadicArgs = params.length > 1 && params[params.length - 1].value === "...";
     return Node(function(arr) {
-      if(!variadicArgs && arr.length !== params.length) throw new Error("Improper number of arguments. Expected: " + params.length + ", got: " + arr.length);
+      if((!variadicArgs && arr.length !== params.length) || (variadicArgs && arr.length < params.length - 2)) throw new Error("Improper number of arguments. Expected: " + (variadicArgs ? params.length - 2 : params.length) + ", got: " + arr.length);
 
       var map = {};
       for (var i = 0; i < params.length; i++) {
@@ -218,9 +218,6 @@ var macroTable = {
       localStack.push(map);
       macroStack.push({});
       if(localStack.length > 1024) return throwError("Stack overflow > 1024", charPos);
-      console.log("args -->", args);
-      console.log("arr -->", arr);
-      console.log("map ---->", map);
       var res = evaluate(body);
       localStack.pop();
       macroStack.pop();
@@ -332,11 +329,12 @@ var symbolTable = {
   },
   "-": function(args, charPos) {
     if(args.length === 0) return [];
+    if(args.length === 1) return Node(-args[0].value, "number", args[0].charPos);
 
-    return Node(args.reduce(function(acc, v) {
+    return Node(args.slice(1).reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot subtract lists. - only accepts numbers.", charPos);
       return acc - v.value;
-    }, 0), args[0].type, charPos);
+    }, args[0].value), args[0].type, charPos);
   },
   "*": function(args, charPos) {
     if(args.length === 0) return [];
@@ -348,11 +346,12 @@ var symbolTable = {
   },
   "/": function(args, charPos) {
     if(args.length === 0) return [];
+    if(args.length === 1) return args[0];
 
-    return Node(args.reduce(function(acc, v) {
+    return Node(args.slice(1).reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot divide lists. / only accepts numbers.", charPos);
       return acc / v.value;
-    }, 1), args[0].type, charPos);
+    }, args[0].value), args[0].type, charPos);
   },
   "cdr": function(args, charPos) {
     checkNumArgs(args, 1);
@@ -363,6 +362,7 @@ var symbolTable = {
   },
   "car": function(args, charPos) {
     checkNumArgs(args, 1);
+
     var rest = args[0];
     if(!isList(rest)) throwError("car expects a list as unique argument.", charPos);
     if(rest.length < 1) throwError("Car not defined on empty lists", charPos);
