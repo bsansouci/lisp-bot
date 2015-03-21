@@ -16,12 +16,12 @@ stdin.addListener("data", function(d) {
     str = str;
   }
 
-  // try {
+  try {
     var AST = lisp.parse(str);
     var output = lisp.evaluate(AST);
     var pretty = lisp.prettyPrint(output);
     console.log(pretty);
-  // } catch (e) {
-  //   console.log(e);
-  // }
+  } catch (e) {
+    console.log(e);
+  }
 });

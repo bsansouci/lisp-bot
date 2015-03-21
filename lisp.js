@@ -71,13 +71,13 @@ function evaluate(ast) {
 
     if(symbolTable.hasOwnProperty(ast.value)) return Node(symbolTable[ast.value], "function", ast.charPos);
 
-    return throwError("Undeclared identifier " + ast.value, ast);
+    return throwError("Undeclared identifier " + ast.value, ast.charPos);
   }
   if(ast.length === 0) return ast;
 
   var maybeMacro = macroTable[ast[0].value];
   if(maybeMacro) {
-    return maybeMacro(ast.slice(1));
+    return maybeMacro(ast.slice(1), ast[0].charPos);
   }
 
   var maybeLocalMacro = getLocal(macroStack, ast[0].value);
@@ -86,9 +86,9 @@ function evaluate(ast) {
   }
   var evaledAST = ast.map(evaluate);
   var func = evaledAST[0];
-  if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0]);
+  if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0].charPos);
 
-  return func.value(evaledAST.slice(1));
+  return func.value(evaledAST.slice(1), ast[0].charPos);
 }
 
 function getLocal(stack, name) {
@@ -146,12 +146,8 @@ function prettyPrint(node) {
   }, "(") + ")";
 }
 
-function throwError(str, node) {
-  for (;isList(node)&&node.length>0;node=node[0]);
-  if (!node || isList(node)) {
-    node = Node("", "", -1);
-  }
-  throw new Error("Error @ char " + node.charPos + ": " + str + "\nIn region: "+sourceString.substring(Math.max(0, node.charPos - 15), node.charPos - 1) + ">>" + sourceString.substring(node.charPos - 1, Math.min(sourceString.length, node.charPos + 15)));
+function throwError(str, charPos) {
+  throw new Error("Error @ char " + charPos + ": " + str + "\nIn region: "+sourceString.substring(Math.max(0, charPos - 15), charPos - 2) + ">>" + sourceString.substring(charPos - 2, Math.min(sourceString.length, charPos + 15)));
 }
 
 function checkNumArgs(args, num) {
@@ -162,7 +158,7 @@ var localStack = [{}];
 var macroStack = [{}];
 
 var macroTable = {
-  "docs": function(args) {
+  "docs": function(args, charPos) {
     if(args.length !== 1) throw new Error("Wrong number of arguments. Please give only one argument");
     var maybeMacro = getLocal(macroStack, args[0].value);
     if(maybeMacro) return Node(maybeMacro.docs, "string", args[0].charPos);
@@ -172,13 +168,13 @@ var macroTable = {
 
     throw new Error("Undefined identifier.");
   },
-  "define": function(args) {
+  "define": function(args, charPos) {
     var name = args[0];
     if(name.type !== "identifier") {
-      return throwError("First argument to define isn't an identifier", name);
+      return throwError("First argument to define isn't an identifier", charPos);
     }
 
-    if(symbolTable.hasOwnProperty(name.value) || macroTable.hasOwnProperty(name.value)) throwError("Reserved, can't redefine " + name.value, name);
+    if(symbolTable.hasOwnProperty(name.value) || macroTable.hasOwnProperty(name.value)) throwError("Reserved, can't redefine " + name.value, charPos);
 
     var body = args[1];
     var docs = "No docs";
@@ -195,12 +191,12 @@ var macroTable = {
     localStack[localStack.length - 1][name.value] = res;
     return res;
   },
-  "lambda": function(args) {
+  "lambda": function(args, charPos) {
     var params = args[0];
-    if(!isList(params)) throwError("Params should be a list of arguments.", params);
+    if(!isList(params)) throwError("Params should be a list of arguments.", charPos);
 
     for (var i = 0; i < params.length; i++) {
-      if(isList(params[i])) throwError("Params can't be lists.", {});
+      if(isList(params[i])) throwError("Params can't be lists.", charPos);
     }
 
     var body = args[1];
@@ -221,22 +217,25 @@ var macroTable = {
       // create a new scope for that function
       localStack.push(map);
       macroStack.push({});
-      if(localStack.length > 1024) return throwError("Stack overflow > 1024", body[0]);
+      if(localStack.length > 1024) return throwError("Stack overflow > 1024", charPos);
+      console.log("args -->", args);
+      console.log("arr -->", arr);
+      console.log("map ---->", map);
       var res = evaluate(body);
       localStack.pop();
       macroStack.pop();
       return res;
     }, "function", params.charPos);
   },
-  "quote": function(args) {
+  "quote": function(args, charPos) {
     return args[0];
   },
-  "unquote": function(args) {
-    if(args.length === 0) throwError("The macro unquote takes one argument.");
+  "unquote": function(args, charPos) {
+    if(args.length === 0) throwError("The macro unquote takes one argument.", charPos);
 
     return evaluate(args[0]);
   },
-  "define-macro": function(args) {
+  "define-macro": function(args, charPos) {
     var name = args[0];
     var body = args[1];
 
@@ -258,7 +257,7 @@ var macroTable = {
 
     return macroStack[macroStack.length - 1][name.value];
   },
-  "syntax-quote": function(args) {
+  "syntax-quote": function(args, charPos) {
     var traverse = function(node) {
       if(!isList(node)) return node;
 
@@ -277,8 +276,8 @@ var macroTable = {
     };
     return traverse(args[0]);
   },
-  "if": function(args) {
-    if(args.length < 2) throwError("Too few arguments to if.");
+  "if": function(args, charPos) {
+    if(args.length < 2) throwError("Too few arguments to if.", charPos);
 
     var bool = evaluate(args[0]);
     if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
@@ -287,7 +286,7 @@ var macroTable = {
     }
     return evaluate(args[2]);
   },
-  "load": function(args) {
+  "load": function(args, charPos) {
     var name = args[0].value;
     var data = fs.readFileSync(name + ".tmp", 'utf8').toString();
     console.log("Loading", name);
@@ -323,40 +322,53 @@ var macroTable = {
 };
 
 var symbolTable = {
-  "+": function(args) {
+  "+": function(args, charPos) {
     if(args.length === 0) return [];
 
-    return Node(args.reduce(function(acc, v) {return acc + v.value;}, 0), args[0].type, args[0].charPos);
+    return Node(args.reduce(function(acc, v) {
+      if(isList(v)) throwError("Cannot add lists. + only accepts numbers.", charPos);
+      return acc + v.value;
+    }, 0), args[0].type, charPos);
   },
-  "-": function(args) {
+  "-": function(args, charPos) {
     if(args.length === 0) return [];
 
-    return Node(args.reduce(function(acc, v) {return acc - v.value;}, 0), args[0].type, args[0].charPos);
+    return Node(args.reduce(function(acc, v) {
+      if(isList(v)) throwError("Cannot subtract lists. - only accepts numbers.", charPos);
+      return acc - v.value;
+    }, 0), args[0].type, charPos);
   },
-  "*": function(args) {
+  "*": function(args, charPos) {
     if(args.length === 0) return [];
 
-    return Node(args.reduce(function(acc, v) {return acc * v.value;}, 1), args[0].type, args[0].charPos);
+    return Node(args.reduce(function(acc, v) {
+      if(isList(v)) throwError("Cannot multiply lists. * only accepts numbers.", charPos);
+      return acc * v.value;
+    }, 1), args[0].type, charPos);
   },
-  "/": function(args) {
+  "/": function(args, charPos) {
     if(args.length === 0) return [];
 
-    return Node(args.reduce(function(acc, v) {return acc / v.value;}, 1), args[0].type, args[0].charPos);
+    return Node(args.reduce(function(acc, v) {
+      if(isList(v)) throwError("Cannot divide lists. / only accepts numbers.", charPos);
+      return acc / v.value;
+    }, 1), args[0].type, charPos);
   },
-  "cdr": function(args) {
+  "cdr": function(args, charPos) {
     checkNumArgs(args, 1);
 
     var rest = args[0];
-    if(!isList(rest)) throw new Error("cdr expects a list as unique argument.");
+    if(!isList(rest)) throwError("cdr expects a list as unique argument.", charPos);
     return rest.slice(1);
   },
-  "car": function(args) {
+  "car": function(args, charPos) {
     checkNumArgs(args, 1);
     var rest = args[0];
-    if(!isList(rest)) throw new Error("car expects a list as unique argument.");
+    if(!isList(rest)) throwError("car expects a list as unique argument.", charPos);
+    if(rest.length < 1) throwError("Car not defined on empty lists", charPos);
     return rest[0];
   },
-  "cons": function(args) {
+  "cons": function(args, charPos) {
     checkNumArgs(args, 2);
 
     var el = args[0];
@@ -366,7 +378,7 @@ var symbolTable = {
 
     return [el].concat(arr);
   },
-  "apply": function(args) {
+  "apply": function(args, charPos) {
     checkNumArgs(args, 2);
 
     var func = args[0];
@@ -376,15 +388,15 @@ var symbolTable = {
 
     return func(arr);
   },
-  "equal?" : function(args) {
-    if (args.length < 2) throwError("", args);
+  "equal?" : function(args, charPos) {
+    if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, charPos);
     for (var i = 1; i < args.length; i++){
 
       if (!areStructurallyEqual(args[i], args[0])) return Node(false, "boolean", -2);
     }
     return Node(true, "boolean", args);
   },
-  "debug": function(args){
+  "debug": function(args, charPos){
     checkNumArgs(args, 2);
     console.log("Debug: " + prettyPrint(args[0]));
     return args[1];

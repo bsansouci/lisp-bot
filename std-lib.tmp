@@ -55,12 +55,6 @@
   (lambda (vars body)
     `((lambda ~(every-other-even vars) ~body) ~@(every-other-odd vars))))
 
-(define ->>
-  (lambda (data func ...)
-    (if (nil? func)
-      data
-      (->> ((car func) data) (cdr func)))))
-
 (define-macro cond
   (lambda (x clause ...)
   `(if ~(nil? x)
@@ -68,3 +62,10 @@
     (if ~(car x)
         ~(car (cdr x))
         (cond ~@clause)))))
+
+(define-macro ->>
+  (lambda (data func ...)
+    `(cond
+       (~(nil? data) ())
+       (~(nil? func) data)
+       (true (; (->> (~@(car func) data) ~(cdr func)))))))
