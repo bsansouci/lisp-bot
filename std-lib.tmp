@@ -7,9 +7,11 @@
 
 (define not
   (lambda (expr)
-    (if expr
-      false
-      true)))
+    (if expr false true)))
+
+(define second
+  (lambda (x)
+    (car (cdr x))))
 
 (define-macro and
   "Evaluates arguments from left to right until it hits one that evaluates to false. If all of expressions evaluate to true, it will return true. Otherwise it will return false."
