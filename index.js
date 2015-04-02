@@ -54,6 +54,8 @@ function startBot(api) {
     };
   }, "List of names in thread.");
 
+  lisp.evaluate(lisp.parse("(load std-lib)"));
+  lisp.evaluate(lisp.parse("(load bot-lib)"));
 
   // Main method
   api.listen(function(err, message, stopListening) {

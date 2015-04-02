@@ -1,0 +1,4 @@
+(define ping 
+  (lambda () "pong"))
+
+(define slap (lambda () (join (cons (nth (name-list) (rand (len (name-list)))) '("just got slapped.")) " ")))

@@ -313,7 +313,7 @@ var macroTable = {
   },
   "load": function(args, charPos) {
     var name = args[0].value;
-    var data = fs.readFileSync(name + ".tmp", 'utf8').toString();
+    var data = fs.readFileSync(name + ".bot", 'utf8').toString();
     console.log("Loading", name);
     var arr = data.split('\n');
     var rest = "";
