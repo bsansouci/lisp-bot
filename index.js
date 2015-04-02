@@ -18,14 +18,42 @@ setInterval(function() {
 
 
 function startBot(api) {
-  // Defaults in case they don't exist (because firebase doesn't save empty
-  // objects)
   var currentUsername;
   var currentUserId;
   var currentThreadId;
   var currentChat;
   var currentOtherUsernames;
   var currentOtherIds;
+
+  lisp.addFunction("send-message", function (utils){
+    return function(args, charPos){
+        utils.checkNumArgs(args, 2);
+        if (utils.isList(args[0]) || utils.isList(args[1]))
+            utils.throwError("Arguments can't be lists.", charPos);
+        api.sendMessage(args[1].value, args[0].value);
+        return utils.Node("Message sent", "string", 0, {src:""});
+    };
+  }, "Call with threadid, then message");
+  lisp.addFunction("thread-id", function(utils){
+    return function(args, charPos) {
+      return utils.Node(currentThreadId, "number", charPos);
+    };
+  }, "Current thread id.");
+
+  lisp.addFunction("id-list", function(utils){
+    return function(args, charPos) {
+      return utils.makeArr.apply(null, [charPos].concat(currentOtherIds.map(
+       function(x) {return utils.Node(x, "number", charPos);})));
+    };
+  }, "List of ids in thread.");
+
+  lisp.addFunction("name-list", function(utils){
+    return function(args, charPos) {
+      return utils.makeArr.apply(null, [charPos].concat(currentOtherUsernames.map(
+       function(x) {return utils.Node(x, "string", charPos);})));
+    };
+  }, "List of names in thread.");
+
 
   // Main method
   api.listen(function(err, message, stopListening) {
@@ -68,6 +96,7 @@ function startBot(api) {
   }
 
   function parseLisp(msg, sendReply) {
+
     var inTxt = "";
 
     if ((/^\/\(.+\)$/).test(msg)){

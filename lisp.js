@@ -183,13 +183,18 @@ var macroStack = [{}];
 var macroTable = {
   "docs": function(args, charPos) {
     if(args.length !== 1) throw new Error("Wrong number of arguments. Please give only one argument");
+    if (symbolTable[args[0].value] && symbolTable[args[0].value].docs)
+      return Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
+    else if (symbolTable[args[0].value]){
+      return Node("Built-in function.", "string", args[0].charPos);
+    }
     var maybeMacro = getLocal(macroStack, args[0].value);
     if(maybeMacro) return Node(maybeMacro.docs, "string", args[0].charPos);
 
     var maybeFunc = getLocal(localStack, args[0].value);
     if(maybeFunc) return Node(maybeFunc.docs, "string", args[0].charPos);
 
-    throw new Error("Undefined identifier.");
+    throw new Error("Undefined identifier '"+args[0].value+"'.");
   },
   "define": function(args, charPos) {
     var name = args[0];
@@ -428,7 +433,7 @@ var symbolTable = {
     checkNumArgs(args, 2);
     if(args[0].type !== "string") throwError("First argument should be a string", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
-    return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return Node(x, "identifier", charPos + i);})));
+    return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return Node(x, "string", charPos + i);})));
   },
   "join": function(args, charPos) {
     checkNumArgs(args, 2);
@@ -442,6 +447,18 @@ var symbolTable = {
       return acc;
     }, ""), "string", charPos);
   },
+  "rand": function(args, charPos) {
+    var r;
+    if (args.length > 1) {
+      r = ~~(Math.random()*(args[1].value-args[0].value)+args[0].value);
+    } else if (args.length > 0) {
+      r = ~~(Math.random()*args[0].value);
+    } else {
+      r = Math.random();
+    }
+    return Node(r, "number", charPos);
+    //{docs : "Returns value between 0 and 1 with no args, 0 and max with 1 arg, and min and max with 2 args."}
+  }
 };
 
 function areStructurallyEqual(obj1, obj2){
@@ -461,8 +478,29 @@ function areStructurallyEqual(obj1, obj2){
   }
 }
 
+var utils = {
+  throwError: throwError,
+  makeArr: makeArr,
+  Node: Node,
+  areStructurallyEqual: areStructurallyEqual,
+  checkNumArgs: checkNumArgs,
+  isList: isList
+};
+
+function addFunction(name, func, docs){
+  if (symbolTable[name]){
+    throw new Error("Error, this function with name "+name+" already defined.");
+  } else {
+    symbolTable[name] = func(utils);
+    if (docs){
+      symbolTable[name].docs = docs;
+    }
+  }
+}
+
 module.exports = {
   parse: parse,
   evaluate: evaluate,
-  prettyPrint: prettyPrint
+  prettyPrint: prettyPrint,
+  addFunction: addFunction
 };
