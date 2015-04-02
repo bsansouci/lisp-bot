@@ -86,3 +86,9 @@
        (~(nil? rest) ~data)
        (~(nil? (cdr rest)) (~(car (car rest)) ~data ~@(cdr (car rest))))
        (true (->> (~@(car rest) ~data) ~@(cdr rest))))))
+
+(define nth
+  (lambda (lst n) 
+    (if (equal? n 0) 
+	  (car lst)
+	  (nth (cdr lst) (- n 1)))))
