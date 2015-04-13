@@ -1,3 +1,5 @@
+/*jslint node: true */
+"use strict";
 var fs = require("fs");
 
 var sourceString = "";
@@ -7,13 +9,13 @@ function parse(str) {
 }
 
 function parseHelper(str, charPos) {
-  if(str.charAt(0) === "'") return makeArr(charPos, Node("quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
+  if(str.charAt(0) === "'") return makeArr(charPos, new Node("quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
 
-  if(str.charAt(0) === "`") return makeArr(charPos, Node("syntax-quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
+  if(str.charAt(0) === "`") return makeArr(charPos, new Node("syntax-quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
 
-  if(str.charAt(0) === "~" && str.charAt(1) === "@") return makeArr(charPos, Node("unquote-splice", "identifier", charPos), parseHelper(str.substring(2), charPos + 2));
+  if(str.charAt(0) === "~" && str.charAt(1) === "@") return makeArr(charPos, new Node("unquote-splice", "identifier", charPos), parseHelper(str.substring(2), charPos + 2));
 
-  if(str.charAt(0) === "~") return makeArr(charPos, Node("unquote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
+  if(str.charAt(0) === "~") return makeArr(charPos, new Node("unquote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
 
   var rightParen = str.charAt(str.length - 1) === ")";
   var leftParen = str.charAt(0) === "(";
@@ -24,20 +26,20 @@ function parseHelper(str, charPos) {
   if(!rightParen && !leftParen) {
     // Number
     if(!isNaN(str)) {
-      return Node(parseFloat(str), "number", charPos);
+      return new Node(parseFloat(str), "number", charPos);
     }
 
     // Bool
     if(str === "false" || str === "true") {
-      return Node(str === "true", "boolean", charPos);
+      return new Node(str === "true", "boolean", charPos);
     }
 
     // Strings
     if(str.charAt(0) === "\"" && str.charAt(str.length - 1) === "\"") {
-      return Node(str.substring(1, str.length - 1), "string", charPos);
+      return new Node(str.substring(1, str.length - 1), "string", charPos);
     }
 
-    return Node(str, "identifier", charPos);
+    return new Node(str, "identifier", charPos);
   }
 
   str = str.substring(1, str.length - 1);
@@ -71,7 +73,7 @@ function evaluate(ast) {
     }
     var maybeLocal = getLocal(localStack, ast.value);
     if(maybeLocal) return maybeLocal;
-    if(symbolTable.hasOwnProperty(ast.value)) return Node(symbolTable[ast.value], "function", ast.charPos);
+    if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
 
     return throwError("Undeclared identifier " + ast.value, ast);
   }
@@ -152,7 +154,7 @@ function prettyPrint(node) {
       case "string":
         return "\"" + node.value + "\"";
       default:
-        throw new Error("Cannot prettyPrint node: " + node);
+        throw new Error("Cannot prettyPrint node: `"+ JSON.stringify(node) + "`, type:" + typeof node);
     }
   }
 
@@ -170,7 +172,13 @@ function throwError(str, node) {
     charPos = node.charPos;
     src = node.src;
   }
-  throw new Error("Error @ char " + charPos + ": " + str + "\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
+
+  if (charPos == -1 || !charPos){
+    throw new Error("Error : " + str);
+  } else {
+    throw new Error("Error @ char " + charPos + ": " + str + "\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
+  }
+
 }
 
 function checkNumArgs(args, num) {
@@ -184,15 +192,15 @@ var macroTable = {
   "docs": function(args, charPos) {
     if(args.length !== 1) throw new Error("Wrong number of arguments. Please give only one argument");
     if (symbolTable[args[0].value] && symbolTable[args[0].value].docs)
-      return Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
+      return new Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
     else if (symbolTable[args[0].value]){
-      return Node("Built-in function.", "string", args[0].charPos);
+      return new Node("Built-in function.", "string", args[0].charPos);
     }
     var maybeMacro = getLocal(macroStack, args[0].value);
-    if(maybeMacro) return Node(maybeMacro.docs, "string", args[0].charPos);
+    if(maybeMacro) return new Node(maybeMacro.docs, "string", args[0].charPos);
 
     var maybeFunc = getLocal(localStack, args[0].value);
-    if(maybeFunc) return Node(maybeFunc.docs, "string", args[0].charPos);
+    if(maybeFunc) return new Node(maybeFunc.docs, "string", args[0].charPos);
 
     throw new Error("Undefined identifier '"+args[0].value+"'.");
   },
@@ -230,7 +238,7 @@ var macroTable = {
     var body = args[1];
 
     var variadicArgs = params.length > 1 && params[params.length - 1].value === "...";
-    return Node(function(arr) {
+    return new Node(function(arr) {
       if((!variadicArgs && arr.length !== params.length) || (variadicArgs && arr.length < params.length - 2)) throw new Error("Improper number of arguments. Expected: " + (variadicArgs ? params.length - 2 : params.length) + ", got: " + arr.length);
 
       var map = {};
@@ -275,8 +283,8 @@ var macroTable = {
     var f = macroTable.lambda(body.slice(1));
 
     // Attach the docs to the object inside the localstack using the
-    // extras param in Node constructor
-    macroStack[macroStack.length - 1][name.value] = Node(function(arg) {
+    // extras param in new Node constructor
+    macroStack[macroStack.length - 1][name.value] = new Node(function(arg) {
       return evaluate(f.value(arg));
     }, "function", name.charPos, {docs: docs});
 
@@ -350,16 +358,16 @@ var symbolTable = {
   "+": function(args, charPos) {
     if(args.length === 0) return [];
 
-    return Node(args.reduce(function(acc, v) {
+    return new Node(args.reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot add lists. + only accepts numbers.", v);
       return acc + v.value;
     }, 0), args[0].type, charPos);
   },
   "-": function(args, charPos) {
     if(args.length === 0) return makeArr(charPos);
-    if(args.length === 1) return Node(-args[0].value, "number", args[0].charPos);
+    if(args.length === 1) return new Node(-args[0].value, "number", args[0].charPos);
 
-    return Node(args.slice(1).reduce(function(acc, v) {
+    return new Node(args.slice(1).reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot subtract lists. - only accepts numbers.", v);
       return acc - v.value;
     }, args[0].value), args[0].type, charPos);
@@ -367,7 +375,7 @@ var symbolTable = {
   "*": function(args, charPos) {
     if(args.length === 0) return makeArr(charPos);
 
-    return Node(args.reduce(function(acc, v) {
+    return new Node(args.reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot multiply lists. * only accepts numbers.", v);
       return acc * v.value;
     }, 1), args[0].type, charPos);
@@ -376,7 +384,7 @@ var symbolTable = {
     if(args.length === 0) return makeArr(charPos);
     if(args.length === 1) return args[0];
 
-    return Node(args.slice(1).reduce(function(acc, v) {
+    return new Node(args.slice(1).reduce(function(acc, v) {
       if(isList(v)) throwError("Cannot divide lists. / only accepts numbers.", v);
       return acc / v.value;
     }, args[0].value), args[0].type, charPos);
@@ -420,9 +428,9 @@ var symbolTable = {
     if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, args);
     for (var i = 1; i < args.length; i++){
 
-      if (!areStructurallyEqual(args[i], args[0])) return Node(false, "boolean", -2);
+      if (!areStructurallyEqual(args[i], args[0])) return new Node(false, "boolean", -2);
     }
-    return Node(true, "boolean", args);
+    return new Node(true, "boolean", args);
   },
   "debug": function(args, charPos){
     checkNumArgs(args, 2);
@@ -433,14 +441,14 @@ var symbolTable = {
     checkNumArgs(args, 2);
     if(args[0].type !== "string") throwError("First argument should be a string", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
-    return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return Node(x, "string", charPos + i);})));
+    return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return new Node(x, "string", charPos + i);})));
   },
   "join": function(args, charPos) {
     checkNumArgs(args, 2);
     if(!isList(args[0])) throwError("First argument should be a list", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
 
-    return Node(args[0].reduce(function(acc, val, i) {
+    return new Node(args[0].reduce(function(acc, val, i) {
       acc += val.value;
 
       if(i < args[0].length - 1) acc += args[1].value;
@@ -456,7 +464,7 @@ var symbolTable = {
     } else {
       r = Math.random();
     }
-    return Node(r, "number", charPos);
+    return new Node(r, "number", charPos);
     //{docs : "Returns value between 0 and 1 with no args, 0 and max with 1 arg, and min and max with 2 args."}
   }
 };
@@ -478,18 +486,44 @@ function areStructurallyEqual(obj1, obj2){
   }
 }
 
+function toLispData(obj, charPos){
+  if(obj instanceof Array){
+    var arr = [];
+    for (var i = 0; i < obj.length; i++){
+      arr.push(toLispData(obj[i], charPos));
+    }
+    return makeArr.apply(null, [charPos].concat(arr));
+  } else if (typeof obj === "object"){
+    var map = [];
+    for (var field in obj){
+      if (obj.hasOwnProperty(field)){
+        var entry = [field, obj[field]];
+        map.push(toLispData(entry, charPos));
+      }
+    }
+    return makeArr.apply(null,[charPos].concat(map));
+  } else if (typeof obj === "number"){
+    return new Node(obj, "number", charPos);
+  } else if (typeof obj === "string"){
+    return new Node(obj, "string", charPos);
+  } else {
+    return makeArr(charPos);
+  }
+}
+
 var utils = {
   throwError: throwError,
   makeArr: makeArr,
   Node: Node,
   areStructurallyEqual: areStructurallyEqual,
   checkNumArgs: checkNumArgs,
-  isList: isList
+  isList: isList,
+  toLispData: toLispData
 };
 
 function addFunction(name, func, docs){
   if (symbolTable[name]){
-    throw new Error("Error, this function with name "+name+" already defined.");
+    throw new Error("This function with name "+name+" already defined.");
   } else {
     symbolTable[name] = func(utils);
     if (docs){

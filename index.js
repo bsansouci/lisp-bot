@@ -118,7 +118,8 @@ function startBot(api) {
       } catch (e) {
         outTxt = e.toString();
       }
-
+      if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"')
+        outTxt = outTxt.substring(1,outTxt.length-1);
       return sendReply({text: outTxt});
     } else {
       return null;
