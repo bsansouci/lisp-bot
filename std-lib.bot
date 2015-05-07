@@ -88,7 +88,18 @@
        (true (->> (~@(car rest) ~data) ~@(cdr rest))))))
 
 (define nth
-  (lambda (lst n) 
-    (if (equal? n 0) 
+  (lambda (lst n)
+    (if (equal? n 0)
 	  (car lst)
 	  (nth (cdr lst) (- n 1)))))
+
+(define m-get
+  (lambda (lst key)
+          (cond
+            ((nil? lst) '())
+            ((equal? (car (car lst)) key) (car (cdr (car lst))))
+            (true (m-get (cdr lst) key)))))
+
+(define m-put
+  (lambda (lst key val)
+          (cons (cons key val) lst)))

@@ -1,4 +1,11 @@
-(define ping 
+(define ping
   (lambda () "pong"))
 
-(define slap (lambda () (join (cons (nth (name-list) (rand (len (name-list)))) '("just got slapped.")) " ")))
+(define slap
+  (lambda () (join (cons (nth (name-list) (rand (len (name-list)))) '("just got slapped.")) " ")))
+
+(define hug
+  (lambda () (join (cons (nth (name-list) (rand (len (name-list)))) '("just got a hug.")) " ")))
+
+(define sayit
+  (lambda () "David's an idiot."))

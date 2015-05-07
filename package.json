@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/bsansouci/lisp-bot",
   "dependencies": {
-    "facebook-chat-api": "~0.1.4",
+    "facebook-chat-api": "git://github.com/schmavery/facebook-chat-api",
+    "firebase": "^2.2.4",
     "request": "~2.53.0"
   }
 }

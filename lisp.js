@@ -73,7 +73,7 @@ function evaluate(ast) {
     if(maybeLocal) return maybeLocal;
     if(symbolTable.hasOwnProperty(ast.value)) return Node(symbolTable[ast.value], "function", ast.charPos);
 
-    return throwError("Undeclared identifier " + ast.value, ast);
+    return throwError("Undeclared identifier `" + ast.value + "`", ast);
   }
   if(ast.length === 0) return ast;
 
@@ -83,6 +83,7 @@ function evaluate(ast) {
   }
 
   var maybeLocalMacro = getLocal(macroStack, ast[0].value);
+
   if(maybeLocalMacro) {
     return maybeLocalMacro.value(makeArr.apply(null, [ast[0].charPos].concat(ast.slice(1))));
   }
@@ -213,6 +214,7 @@ var macroTable = {
     }
 
     var res = evaluate(body);
+
     // Attach the docs to the object inside the localstack
     res.docs = docs;
 
@@ -246,7 +248,9 @@ var macroTable = {
       localStack.push(map);
       macroStack.push({});
       if(localStack.length > 1024) return throwError("Stack overflow > 1024", this);
+
       var res = evaluate(body);
+
       localStack.pop();
       macroStack.pop();
       return res;
@@ -498,9 +502,22 @@ function addFunction(name, func, docs){
   }
 }
 
+function evaluateWith(toEval, context, macroContext) {
+  localStack.push(context);
+  macroStack.push(macroContext || {});
+  var res = evaluate(toEval);
+  var newContext = localStack.pop();
+  macroStack.pop();
+  return {
+    res: res,
+    newContext: newContext
+  };
+}
+
 module.exports = {
   parse: parse,
   evaluate: evaluate,
   prettyPrint: prettyPrint,
-  addFunction: addFunction
+  addFunction: addFunction,
+  evaluateWith: evaluateWith
 };
