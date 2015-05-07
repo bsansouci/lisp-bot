@@ -149,6 +149,10 @@ function startBot(api, globalScope, allScopes) {
       globalScopeDB.set(globalScope);
       allScopesDB.set(allScopes);
 
+      if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
+        outTxt = outTxt.substring(1,outTxt.length-1);
+      }
+
       return sendReply({text: outTxt});
     } else {
       return null;
