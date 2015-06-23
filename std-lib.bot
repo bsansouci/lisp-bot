@@ -5,6 +5,30 @@
   (lambda (x ...)
     `(equal? () () ~@x)))
 
+(define identity (lambda (x) x))
+
+(; define-macro apply 
+   "Takes a fn and an arr and applies the elements of the array to the function as arguments."
+   (lambda (fn arr) `(~fn ~@arr)))
+
+(define list (lambda (args ...) args))
+
+(define map (lambda (fn arr)
+  (if (nil? arr) 
+    '()
+    (concat (list (fn (car arr))) (map fn (cdr arr)))
+  )))
+
+(define reduce (lambda (fn base arr)
+  (if (nil? arr) 
+    base
+    (fn (reduce fn base (cdr arr)) (car arr))))
+  )
+
+(define zero?
+  (lambda (expr)
+    (equal? 0 expr)))
+
 (define not
   (lambda (expr)
     (if expr false true)))
@@ -16,21 +40,24 @@
 (define-macro and
   "Evaluates arguments from left to right until it hits one that evaluates to false. If all of expressions evaluate to true, it will return true. Otherwise it will return false."
   (lambda (x args ...)
-    (if (nil? x)
-      true
+    (if (nil? args)
+      x
       `(if ~x (and ~@args) false))))
 
 (define-macro or
   "Evaluates arguments from left to right until it hits one that evaluates to true. If one of the expressions evaluate to true, it will return true. Otherwise it will return false."
   (lambda (x args ...)
-    (if (nil? x)
-      false
+    (if (nil? args)
+      x
       `(if ~x true (or ~@args)))))
 
 (define len (lambda (coll)
-  (if (nil? coll)
-    0
-    (+ 1 (len (cdr coll))))))
+  (reduce (lambda (acc _) (+ acc 1)) 0 coll)))
+
+(define contain? (lambda (fn key arr)
+                 (reduce (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
+
+(define dedupe (lambda (arr) (reduce (lambda (acc x) (if (contain? identity x acc) acc (cons x acc))) '() arr)))
 
 (define even-len? (lambda (coll)
   (if (nil? coll)
@@ -85,10 +112,21 @@
     `(cond
        (~(nil? rest) ~data)
        (~(nil? (cdr rest)) (~(car (car rest)) ~data ~@(cdr (car rest))))
-       (true (->> (~@(car rest) ~data) ~@(cdr rest))))))
+       (true (-> (~@(car rest) ~data) ~@(cdr rest))))))
 
 (define nth
   (lambda (lst n) 
     (if (equal? n 0) 
-	  (car lst)
-	  (nth (cdr lst) (- n 1)))))
+      (car lst)
+      (nth (cdr lst) (- n 1)))))
+
+(define hashmap (lambda (init ...)
+  (reduce (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
+
+(define assoc 
+        (lambda (hmap key val)
+                (let (m (dedupe (cons (list key val) (hmap)))) 
+		             (lambda (args ...)
+                             (let (l (len args))
+                                  (cond ((equal? 0 l) m)
+                                        ((equal? 1 l) (reduce (lambda (acc v) (if (equal? (car v) (car args)) (car (cdr v)) acc)) '() m))))))))
