@@ -115,9 +115,8 @@ function Node(value, type, charPos, extras) {
     type: type,
     charPos: charPos
   };
+  if(extras) node = merge(node, extras);
   if(typeof value === "function") node.value = value.bind(node);
-
-  if(extras) return merge(node, extras);
 
   return node;
 }
@@ -151,6 +150,8 @@ function prettyPrint(node) {
         return node.value.toString();
       case "function":
         return "[Function]";
+      case "ref":
+        return "[Ref: " + prettyPrint(node.value) + "]";
       case "string":
         return "\"" + node.value + "\"";
       default:
@@ -165,7 +166,7 @@ function prettyPrint(node) {
 
 function throwError(str, node) {
   var charPos, src;
-  if(typeof node === "number") { // We passed a charpos directly
+  if(typeof node !== "object") { // We passed a charpos directly
     charPos = node;
     src = sourceString;
   } else {
@@ -181,8 +182,11 @@ function throwError(str, node) {
 
 }
 
-function checkNumArgs(args, num) {
-  if(args.length !== num) throw new Error("Improper number of arguments. Expected: " + num + ", got: " + args.length);
+function checkNumArgs(charPos, args, num) {
+  if(args.length !== num) {
+    console.log(charPos);
+    throwError("Improper number of arguments. Expected: " + num + ", got: " + args.length, charPos);
+  }
 }
 
 var localStack = [{}];
@@ -239,7 +243,7 @@ var macroTable = {
 
     var variadicArgs = params.length > 1 && params[params.length - 1].value === "...";
     return new Node(function(arr) {
-      if((!variadicArgs && arr.length !== params.length) || (variadicArgs && arr.length < params.length - 2)) throw new Error("Improper number of arguments. Expected: " + (variadicArgs ? params.length - 2 : params.length) + ", got: " + arr.length);
+      if((!variadicArgs && arr.length !== params.length) || (variadicArgs && arr.length < params.length - 2)) throwError("Improper number of arguments. Expected: " + (variadicArgs ? params.length - 2 : params.length) + ", got: " + arr.length, charPos);
 
       var map = {};
       for (var i = 0; i < params.length; i++) {
@@ -251,14 +255,20 @@ var macroTable = {
       }
 
       // create a new scope for that function
+      var tmp = localStack;
+      var macroTmp = macroStack;
+      localStack = this.scope;
+      macroStack = this.macroScope;
       localStack.push(map);
       macroStack.push({});
       if(localStack.length > 1024) return throwError("Stack overflow > 1024", this);
       var res = evaluate(body);
       localStack.pop();
       macroStack.pop();
+      localStack = tmp;
+      macroStack = macroTmp;
       return res;
-    }, "function", params.charPos);
+    }, "function", params.charPos, {scope: localStack.slice(), macroScope: macroStack.slice()});
   },
   "quote": function(args, charPos) {
     return args[0];
@@ -310,7 +320,7 @@ var macroTable = {
     return traverse(args[0]);
   },
   "if": function(args, charPos) {
-    if(args.length < 2) throwError("Too few arguments to if.", args);
+    if(args.length < 3) throwError("Too few arguments to if.", args);
 
     var bool = evaluate(args[0]);
     if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
@@ -333,7 +343,7 @@ var macroTable = {
         if(arr2[j] === '(') parens++;
         if(arr2[j] === ')') parens--;
       }
-      if(parens < 0) throw new Error("Brackets mismatch, too many closing brackets.");
+      if(parens < 0) throwError("Brackets mismatch, too many closing brackets.", charPos);
 
       if(parens > 0) {
         rest = s;
@@ -390,14 +400,14 @@ var symbolTable = {
     }, args[0].value), args[0].type, charPos);
   },
   "cdr": function(args, charPos) {
-    checkNumArgs(args, 1);
+    checkNumArgs(charPos, args, 1);
 
     var rest = args[0];
     if(!isList(rest)) throwError("cdr expects a list as unique argument.", rest);
     return rest.slice(1);
   },
   "car": function(args, charPos) {
-    checkNumArgs(args, 1);
+    checkNumArgs(charPos, args, 1);
 
     var rest = args[0];
     if(!isList(rest)) throwError("car expects a list as unique argument.", rest);
@@ -405,7 +415,7 @@ var symbolTable = {
     return rest[0];
   },
   "cons": function(args, charPos) {
-    checkNumArgs(args, 2);
+    checkNumArgs(charPos, args, 2);
 
     var el = args[0];
     var arr = args[1];
@@ -415,14 +425,14 @@ var symbolTable = {
     return makeArr.apply(null, [charPos, el].concat(arr));
   },
   "apply": function(args, charPos) {
-    checkNumArgs(args, 2);
+    checkNumArgs(charPos, args, 2);
 
     var func = args[0];
     var arr = args[1];
-    if(!isList(arr)) throw new Error("Second argument should be a list.");
-    if(typeof func !== "function") throw new Error("First argument should be a function.");
+    if(!isList(arr)) throwError("Second argument should be a list.");
+    if(func.type !== "function") throwError("First argument should be a function.");
 
-    return func(arr);
+    return func.value(arr);
   },
   "equal?" : function(args, charPos) {
     if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, args);
@@ -432,19 +442,25 @@ var symbolTable = {
     }
     return new Node(true, "boolean", args);
   },
-  "debug": function(args, charPos){
-    checkNumArgs(args, 2);
-    console.log("Debug: " + prettyPrint(args[0]));
-    return args[1];
+  "concat": function(args, charPos){
+    checkNumArgs(charPos, args, 2);
+    checkNumArgs(charPos, args, 2);
+
+    var arr1 = args[0];
+    var arr2 = args[1];
+
+    if(!isList(arr1) || !isList(arr2)) throwError("concat takes two lists.");
+
+    return makeArr.apply(null, [charPos].concat(arr1.concat(arr2)));
   },
   "split": function(args, charPos) {
-    checkNumArgs(args, 2);
+    checkNumArgs(charPos, args, 2);
     if(args[0].type !== "string") throwError("First argument should be a string", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
     return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return new Node(x, "string", charPos + i);})));
   },
   "join": function(args, charPos) {
-    checkNumArgs(args, 2);
+    checkNumArgs(charPos, args, 2);
     if(!isList(args[0])) throwError("First argument should be a list", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
 
@@ -466,6 +482,24 @@ var symbolTable = {
     }
     return new Node(r, "number", charPos);
     //{docs : "Returns value between 0 and 1 with no args, 0 and max with 1 arg, and min and max with 2 args."}
+  },
+  "ref": function(args, charPos){
+    checkNumArgs(charPos, args, 1);
+    return new Node(args[0], "ref", charPos);
+  },
+  "set!": function(args, charPos){
+    checkNumArgs(charPos, args, 2);
+    // 1st arg: ref
+    // 2nd arg: new val
+    if (args[0].type !== 'ref') throwError("First argument to set! must be a ref type.", charPos);
+    if (args[1].type === 'ref') throwError("Second argument to set! cannot be a ref type.", charPos);
+    args[0].value = args[1];
+    return args[1];
+  },
+  "get": function(args, charPos){
+    checkNumArgs(charPos, args, 1);
+    if (args[0].type !== 'ref') throwError("First argument to get must be a ref type.", charPos);
+    return args[0].value;
   }
 };
 
@@ -487,6 +521,7 @@ function areStructurallyEqual(obj1, obj2){
 }
 
 function toLispData(obj, charPos){
+  charPos = charPos || -1;
   if(obj instanceof Array){
     var arr = [];
     for (var i = 0; i < obj.length; i++){
