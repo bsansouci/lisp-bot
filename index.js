@@ -25,32 +25,37 @@ function startBot(api) {
   var currentOtherUsernames;
   var currentOtherIds;
 
+  lisp.addFunction("listen", function (utils){
+    return function(args, charPos){
+        utils.checkNumArgs(args, 2);
+        utils.throwError("Unimplemented.", charPos);
+        return utils.toLispData("deal with it.");
+    };
+  }, "Call with regex, then function.  Listens to all messages and calls the function when the regex is matched.");
   lisp.addFunction("send-message", function (utils){
     return function(args, charPos){
         utils.checkNumArgs(args, 2);
         if (utils.isList(args[0]) || utils.isList(args[1]))
             utils.throwError("Arguments can't be lists.", charPos);
         api.sendMessage(args[1].value, args[0].value);
-        return utils.Node("Message sent", "string", 0, {src:""});
+        return utils.toLispData("Message sent");
     };
   }, "Call with threadid, then message");
   lisp.addFunction("thread-id", function(utils){
     return function(args, charPos) {
-      return utils.Node(currentThreadId, "number", charPos);
+      return utils.toLispData(currentThreadId);
     };
   }, "Current thread id.");
 
   lisp.addFunction("id-list", function(utils){
     return function(args, charPos) {
-      return utils.makeArr.apply(null, [charPos].concat(currentOtherIds.map(
-       function(x) {return utils.Node(x, "number", charPos);})));
+      return utils.toLispData(currentOtherIds);
     };
   }, "List of ids in thread.");
 
   lisp.addFunction("name-list", function(utils){
     return function(args, charPos) {
-      return utils.makeArr.apply(null, [charPos].concat(currentOtherUsernames.map(
-       function(x) {return utils.Node(x, "string", charPos);})));
+      return utils.toLispData(currentOtherUsernames);
     };
   }, "List of names in thread.");
 
