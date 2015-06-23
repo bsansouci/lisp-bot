@@ -3,6 +3,8 @@ var stdin = process.openStdin();
 var lisp = require("./lisp");
 
 lisp.evaluate(lisp.parse("(load std-lib)"));
+lisp.evaluate(lisp.parse("(load polyfill)"));
+lisp.evaluate(lisp.parse("(load bot-lib)"));
 
 stdin.addListener("data", function(d) {
   var str = d.toString().substring(0, d.length-1).trim();
