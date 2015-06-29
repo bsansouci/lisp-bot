@@ -1,4 +1,38 @@
 (define ping 
   (lambda () "pong"))
 
-(define slap (lambda () (join (cons (nth (name-list) (rand (len (name-list)))) '("just got slapped.")) " ")))
+(define sayit 
+  (lambda () "David's an idiot"))
+
+(define slap 
+  (lambda (args ...)
+  (join 
+    (list 
+        (if (nil? args)
+        (nth (name-list) (rand (len (name-list))))
+        (car args))
+        (if (zero? (rand 2)) 
+        "just got slapped.  Hard." 
+        "just got slapped." ))
+    " ")
+  )
+)
+
+(define hug 
+  (lambda (args ...)
+  (join 
+    (list 
+        (if (nil? args)
+        (nth (name-list) (rand (len (name-list))))
+        (car args))
+        (if (zero? (rand 2)) 
+        "just got a BIG hug." 
+        "just got a hug."))
+    " ")
+  )
+)
+
+(define scores (ref (hashmap)))
+
+(define ++
+  (lambda (name) "You suck"))
