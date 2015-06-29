@@ -1,4 +1,4 @@
-(define ping 
+(define ping
   (lambda () "pong"))
 
 (define sayit 

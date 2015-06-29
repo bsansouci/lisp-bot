@@ -1,6 +1,7 @@
 var login = require("facebook-chat-api");
 var request = require("request");
 var lisp = require("./lisp");
+var Firebase = require("firebase");
 
 // Little binding to prevent heroku from complaining about port binding
 var http = require('http');
@@ -17,13 +18,18 @@ setInterval(function() {
 }, 1800000 * Math.random() + 1200000); // between 20 and 50 min
 
 
-function startBot(api) {
+var db = new Firebase(process.env.MARC_ZUCKERBOT_FIREBASE);
+var globalScopeDB = db.child("globalScope");
+var allScopesDB = db.child("allScopes");
+
+function startBot(api, globalScope, allScopes) {
   var currentUsername;
   var currentUserId;
   var currentThreadId;
   var currentChat;
   var currentOtherUsernames;
   var currentOtherIds;
+  var currentScope;
 
   lisp.addFunction("listen", function (utils){
     return function(args, charPos){
@@ -69,9 +75,8 @@ function startBot(api) {
     console.log("Received ->", message);
     read(message.body, message.sender_name.split(' ')[0], message.thread_id, message.sender_id, message.participant_names, message.participant_ids, function(msg) {
       if(!msg) return;
-      console.log("Sending ->", msg, msg.text.length, message.thread_id);
       if(msg.text && msg.text.length > 0) {
-        console.log("SENT");
+        console.log("Sending ->", msg, msg.text.length, message.thread_id);
         api.sendMessage(msg.text, message.thread_id);
       } else api.markAsRead(message.thread_id);
     });
@@ -90,6 +95,7 @@ function startBot(api) {
     currentUserId = userId;
     currentUsername = username;
     currentOtherUsernames = otherUsernames;
+    currentScope = allScopes[currentThreadId] = allScopes[currentThreadId] || [];
 
     // Remove one Marc
     if(currentOtherUsernames.indexOf("Marc") !== -1) {
@@ -118,13 +124,40 @@ function startBot(api) {
     if (inTxt.length > 0){
       try {
         var AST = lisp.parse(inTxt);
-        var output = lisp.evaluate(AST);
-        outTxt = lisp.prettyPrint(output);
+        var context = currentScope.reduce(function(acc, v) {
+          acc[globalScope[v].identifier] = globalScope[v].node;
+          return acc;
+        }, {});
+
+        var output = lisp.evaluateWith(AST, context);
+
+        for (var i = currentScope.length - 1; i >= 0; i--) {
+          globalScope[currentScope[i]].node = output.newContext[globalScope[currentScope[i]].identifier];
+          delete output.newContext[globalScope[currentScope[i]].identifier];
+        }
+
+        for (var prop in output.newContext) {
+          var newEntry = {
+            identifier: prop,
+            node: output.newContext[prop]
+          };
+          var id = genId();
+          globalScope[id] = newEntry;
+          currentScope.push(id);
+        }
+
+        outTxt = lisp.prettyPrint(output.res);
       } catch (e) {
         outTxt = e.toString();
       }
-      if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"')
+
+      globalScopeDB.set(globalScope);
+      allScopesDB.set(allScopes);
+
+      if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
         outTxt = outTxt.substring(1,outTxt.length-1);
+      }
+
       return sendReply({text: outTxt});
     } else {
       return null;
@@ -132,8 +165,19 @@ function startBot(api) {
   }
 }
 
+var genId;
+
 // Main function
-login("config.json", function(err, api) {
-  if(err) return console.error(err);
-    startBot(api);
+db.once('value', function(snapshot) {
+  var data = snapshot.val() || {};
+  login(function(err, api) {
+    if(err) return console.error(err);
+    genId = (function(counter) {
+      return function() {
+        return counter++;
+      };
+    })(Object.keys(data.globalScope || {}).length);
+    startBot(api, data.globalScope || {}, data.allScopes || {});
+  });
 });
+
