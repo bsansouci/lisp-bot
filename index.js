@@ -69,29 +69,31 @@ function startBot(api, globalScope, allScopes) {
   lisp.evaluate(lisp.parse("(load bot-lib)"));
 
   // Main method
-  api.listen(function(err, message, stopListening) {
+  var stopListening = api.listen(function(err, event) {
     if(err) return console.error(err);
 
-    console.log("Received ->", message);
-    read(message.body, message.sender_name.split(' ')[0], message.thread_id, message.sender_id, message.participant_names, message.participant_ids, function(msg) {
-      if(!msg) return;
-      if(msg.text && msg.text.length > 0) {
-        console.log("Sending ->", msg, msg.text.length, message.thread_id);
-        api.sendMessage(msg.text, message.thread_id);
-      } else api.markAsRead(message.thread_id);
-    });
+    if(event.type === 'message') {
+      console.log("Received ->", event);
+      read(event.body, event.senderName.split(' ')[0], event.threadID, event.senderID, event.participantNames, event.participantIDs, function(msg) {
+        if(!msg) return;
+        if(msg.text && msg.text.length > 0) {
+          console.log("Sending ->", msg, msg.text.length, event.threadID);
+          api.sendMessage(msg.text, event.threadID);
+        } else api.markAsRead(event.threadID);
+      });
+    }
   });
 
 
   // messages, username, chat id are Strings, otherUsernames is array of Strings
-  function read(message, username, thread_id, userId, otherUsernames, otherIds, callback) {
+  function read(message, username, threadID, userId, otherUsernames, otherIds, callback) {
     // Default chat object or existing one
     // And set the global object
     //if (!currentChat.existingChat){
     //  currentChat.existingChat = true;
-    //  api.sendMessage("Hey, type '/help' for some useful commands!", thread_id);
+    //  api.sendMessage("Hey, type '/help' for some useful commands!", threadID);
     //}
-    currentThreadId = thread_id;
+    currentThreadId = threadID;
     currentUserId = userId;
     currentUsername = username;
     currentOtherUsernames = otherUsernames;
@@ -170,7 +172,10 @@ var genId;
 // Main function
 db.once('value', function(snapshot) {
   var data = snapshot.val() || {};
-  login(function(err, api) {
+  login({
+    email: process.env.FB_LOGIN_EMAIL,
+    password: process.env.FB_LOGIN_PASSWORD
+  }, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
     genId = (function(counter) {
       return function() {
