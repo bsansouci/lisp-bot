@@ -3,6 +3,8 @@
 var fs = require("fs");
 
 var sourceString = "";
+var EVALUATE_WITH = false;
+
 function parse(str) {
   sourceString = str;
   return parseHelper(str, 0);
@@ -52,15 +54,15 @@ function parseHelper(str, charPos) {
     if(arr[i] === "\"") insideString = !insideString;
     if(arr[i] === "(") matchingParen++;
     if(arr[i] === ")") matchingParen--;
-    if(arr[i] === " " && !insideString && matchingParen === 0 && tmpString.length !== 0) {
-      list.push(parseHelper(tmpString.trim(), 2 + charPos + i - tmpString.length));
+    if(arr[i] === " " && !insideString && matchingParen === 0 && tmpString.trim().length !== 0) {
+      list.value.push(parseHelper(tmpString.trim(), 1 + charPos + i - tmpString.length));
       tmpString = "";
     }
 
     tmpString += arr[i];
   }
-  if(tmpString.length !== 0) {
-    list.push(parseHelper(tmpString.trim(), 2 + charPos + str.length - tmpString.length));
+  if(tmpString.trim().length !== 0) {
+    list.value.push(parseHelper(tmpString.trim(), 1 + charPos + str.length - tmpString.length));
   }
 
   return list;
@@ -77,24 +79,66 @@ function evaluate(ast) {
 
     return throwError("Undeclared identifier `" + ast.value + "`", ast);
   }
-  if(ast.length === 0) return ast;
+  if(ast.value.length === 0) return ast;
 
-  var maybeMacro = macroTable[ast[0].value];
+  var firstElem = ast.value[0];
+  var maybeMacro = macroTable[firstElem.value];
   if(maybeMacro) {
-    return maybeMacro(makeArr.apply(null, [ast[0].charPos].concat(ast.slice(1))), ast[0].charPos);
+    return maybeMacro(ast.value.slice(1), firstElem.charPos);
   }
 
-  var maybeLocalMacro = getLocal(macroStack, ast[0].value);
+  var maybeLocalMacro = getLocal(macroStack, firstElem.value);
 
   if(maybeLocalMacro) {
-    return maybeLocalMacro.value(makeArr.apply(null, [ast[0].charPos].concat(ast.slice(1))));
+    return evaluate(evalLambda(maybeLocalMacro, ast.value.slice(1), firstElem.charPos));
   }
-  var evaledAST = ast.map(evaluate);
+
+  var evaledAST = ast.value.map(evaluate);
 
   var func = evaledAST[0];
-  if(func.type !== "function") return throwError("Identifier '" + ast[0].value + "' isn't a function.", ast[0]);
+  if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function.", firstElem);
 
-  return func.value(makeArr.apply(null, [ast[0].charPos].concat(evaledAST.slice(1))), ast[0].charPos);
+  return evalLambda(func, evaledAST.slice(1), firstElem.charPos);
+}
+
+function evalLambda(func, args, charPos) {
+  if(typeof func.value === 'function') return func.value(args, charPos);
+  var argNames = func.argNames.value || [];
+
+  var variadicArgs = argNames.length > 1 && argNames[argNames.length - 1].value === "...";
+  if((!variadicArgs && args.length !== argNames.length) || (variadicArgs && args.length < argNames.length - 2)) {
+    throwError("Improper number of arguments. Expected: " + (variadicArgs ? argNames.length - 2 : argNames.length) + ", got: " + args.length, charPos);
+  }
+
+  var map = {};
+  for (var i = 0; i < argNames.length; i++) {
+    map[argNames[i].value] = args[i] ? args[i] : makeArr(charPos);
+  }
+  if(variadicArgs) {
+    map[argNames[argNames.length - 2].value] = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
+    delete map["..."];
+  }
+
+  // create a new scope for that function
+  var tmp = localStack;
+  var macroTmp = macroStack;
+  localStack = localStack.concat(func.scope || []);
+  macroStack = macroStack.concat(func.macroScope || []);
+  localStack.push(map);
+  macroStack.push({});
+
+  if(localStack.length > 1024) {
+    localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1);
+    macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1);
+    throwError("Stack overflow > 1024", func);
+  }
+
+  var result = evaluate(func.value);
+
+  localStack = tmp;
+  macroStack = macroTmp;
+
+  return result;
 }
 
 function getLocal(stack, name) {
@@ -106,7 +150,7 @@ function getLocal(stack, name) {
 }
 
 function isList(a) {
-  return a instanceof Array;
+  return a.type === 'list';
 }
 
 function Node(value, type, charPos, extras) {
@@ -114,7 +158,8 @@ function Node(value, type, charPos, extras) {
     src: sourceString,
     value: value,
     type: type,
-    charPos: charPos
+    charPos: charPos,
+    uuid: uuid(),
   };
   if(extras) node = merge(node, extras);
   if(typeof value === "function") node.value = value.bind(node);
@@ -123,10 +168,7 @@ function Node(value, type, charPos, extras) {
 }
 
 function makeArr(charPos) {
-  var arr = Array.prototype.slice.call(arguments, 1);
-  arr.charPos = charPos;
-  arr.src = sourceString;
-  return arr;
+  return new Node(Array.prototype.slice.call(arguments, 1), "list", charPos)
 }
 
 function merge(obj1, obj2) {
@@ -141,8 +183,10 @@ function merge(obj1, obj2) {
   return ret;
 }
 
-function prettyPrint(node) {
+function prettyPrint(node, optionalRefMapping) {
   if (typeof node === "undefined") return "undefined";
+  if(!optionalRefMapping) optionalRefMapping = refMapping;
+
   if(!isList(node)) {
     switch(node.type) {
       case "identifier":
@@ -150,9 +194,10 @@ function prettyPrint(node) {
       case "number":
         return node.value.toString();
       case "function":
-        return "[Function]";
+        if(typeof node.value === 'function') return "[Native Function]";
+        return "[Function: " + prettyPrint(node.argNames) + " -> " + prettyPrint(node.value) + "]";
       case "ref":
-        return "[Ref: " + prettyPrint(node.value) + "]";
+        return "[Ref: " + prettyPrint(optionalRefMapping[node.value]) + "]";
       case "string":
         return "\"" + node.value + "\"";
       default:
@@ -160,14 +205,16 @@ function prettyPrint(node) {
     }
   }
 
-  return node.reduce(function(acc, v, i) {
-    return acc + prettyPrint(v) + (i !== node.length - 1 ? " " : "");
+  if(node.value.length === 0) return "nil";
+
+  return node.value.reduce(function(acc, v, i) {
+    return acc + prettyPrint(v) + (i < node.value.length - 1 ? " " : "");
   }, "(") + ")";
 }
 
 function throwError(str, node) {
   var charPos, src;
-  if(typeof node !== "object") { // We passed a charpos directly
+  if(typeof node !== "object") { // We passed a charPos directly
     charPos = node;
     src = sourceString;
   } else {
@@ -176,22 +223,21 @@ function throwError(str, node) {
   }
 
   if (charPos == -1 || !charPos){
-    throw new Error("Error : " + str);
+    throw new Error(str);
   } else {
-    throw new Error("Error @ char " + charPos + ": " + str + "\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
+    throw new Error("At char " + charPos + ": " + str + "\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
   }
-
 }
 
 function checkNumArgs(charPos, args, num) {
   if(args.length !== num) {
-    console.log(charPos);
     throwError("Improper number of arguments. Expected: " + num + ", got: " + args.length, charPos);
   }
 }
 
 var localStack = [{}];
 var macroStack = [{}];
+var refMapping = {};
 
 var macroTable = {
   "docs": function(args, charPos) {
@@ -210,6 +256,8 @@ var macroTable = {
     throw new Error("Undefined identifier '"+args[0].value+"'.");
   },
   "define": function(args, charPos) {
+    checkNumArgs(charPos, args, 2);
+
     var name = args[0];
     if(name.type !== "identifier") {
       return throwError("First argument to define isn't an identifier", name);
@@ -225,54 +273,42 @@ var macroTable = {
       body = args[2];
     }
 
+    // Hacky way to save native functions by wrapping them in a lambda
+    if(body.type === 'identifier' && symbolTable.hasOwnProperty(body.value)) {
+      body = new Node(
+        makeArr(charPos,
+          new Node('apply', 'identifier', charPos),
+          new Node(body.value, 'identifier', charPos),
+          new Node('args', 'identifier', charPos)
+        ), 'function', charPos, {
+        argNames: makeArr(charPos,
+          new Node('args', 'identifier', charPos),
+          new Node('...', 'identifier', charPos)
+        )
+      });
+    }
     var res = evaluate(body);
 
-    // Attach the docs to the object inside the localstack
+    // Attach the docs to the object inside the localStack
     res.docs = docs;
 
     localStack[localStack.length - 1][name.value] = res;
     return res;
   },
   "lambda": function(args, charPos) {
-    var params = args[0];
-    if(!isList(params)) throwError("Params should be a list of arguments.", params);
+    checkNumArgs(charPos, args, 2);
 
-    for (var i = 0; i < params.length; i++) {
-      if(isList(params[i])) throwError("Params can't be lists.", params[i]);
+    var argNames = args[0];
+    if(!isList(argNames)) throwError("argNames should be a list of arguments.", argNames);
+
+    for (var i = 0; i < argNames.value.length; i++) {
+      if(isList(argNames.value[i])) throwError("argNames can't be lists.", argNames.value[i]);
     }
 
     var body = args[1];
+    var defaultStackSize = EVALUATE_WITH ? 2 : 1;
 
-    var variadicArgs = params.length > 1 && params[params.length - 1].value === "...";
-    return new Node(function(arr) {
-      if((!variadicArgs && arr.length !== params.length) || (variadicArgs && arr.length < params.length - 2)) throwError("Improper number of arguments. Expected: " + (variadicArgs ? params.length - 2 : params.length) + ", got: " + arr.length, charPos);
-
-      var map = {};
-      for (var i = 0; i < params.length; i++) {
-        map[params[i].value] = arr[i] ? arr[i] : makeArr(charPos);
-      }
-      if(variadicArgs) {
-        map[params[params.length - 2].value] = makeArr.apply(null, [charPos].concat(arr.slice(params.length - 2)));
-        delete map["..."];
-      }
-
-      // create a new scope for that function
-      var tmp = localStack;
-      var macroTmp = macroStack;
-      localStack = this.scope;
-      macroStack = this.macroScope;
-      localStack.push(map);
-      macroStack.push({});
-      if(localStack.length > 1024) return throwError("Stack overflow > 1024", this);
-
-      var res = evaluate(body);
-
-      localStack.pop();
-      macroStack.pop();
-      localStack = tmp;
-      macroStack = macroTmp;
-      return res;
-    }, "function", params.charPos, {scope: localStack.slice(), macroScope: macroStack.slice()});
+    return new Node(body, "function", argNames.charPos, {scope: localStack.slice(defaultStackSize).map(v => JSON.parse(JSON.stringify(v))), macroScope: macroStack.slice(defaultStackSize).map(v => JSON.parse(JSON.stringify(v))), argNames: argNames});
   },
   "quote": function(args, charPos) {
     return args[0];
@@ -284,39 +320,40 @@ var macroTable = {
   },
   "define-macro": function(args, charPos) {
     var name = args[0];
-    var body = args[1];
+    var lambda = args[1];
 
     var docs = "No docs";
 
     // Adding optional comments when defining functions
-    if(body.type === "string" && args.length > 2) {
-      docs = body.value;
-      body = args[2];
+    if(lambda.type === "string" && args.length > 2) {
+      docs = lambda.value;
+      lambda = args[2];
     }
 
-    var f = macroTable.lambda(body.slice(1));
-
-    // Attach the docs to the object inside the localstack using the
+    // Attach the docs to the object inside the localStack using the
     // extras param in new Node constructor
-    macroStack[macroStack.length - 1][name.value] = new Node(function(arg) {
-      return evaluate(f.value(arg));
-    }, "function", name.charPos, {docs: docs});
+    const evaledLambda = evaluate(lambda);
 
-    return macroStack[macroStack.length - 1][name.value];
+    evaledLambda.docs = docs;
+    evaledLambda.isMacro = true;
+
+    macroStack[macroStack.length - 1][name.value] = evaledLambda;
+
+    return evaledLambda;
   },
   "syntax-quote": function(args, charPos) {
     var traverse = function(node) {
       if(!isList(node)) return node;
 
-      if(node.length > 0 && node[0].value === "unquote") {
-        return evaluate(node[1]);
+      if(node.value.length > 0 && node.value[0].value === "unquote") {
+        return evaluate(node.value[1]);
       }
 
       var newTree = makeArr(charPos);
-      for (var i = 0; i < node.length; i++) {
-        if(isList(node[i]) && node[i].length > 0 && node[i][0].value === "unquote-splice") {
-          newTree = newTree.concat(evaluate(node[i][1]));
-        } else newTree.push(traverse(node[i]));
+      for (var i = 0; i < node.value.length; i++) {
+        if(isList(node.value[i]) && node.value[i].value.length > 0 && node.value[i].value[0].value === "unquote-splice") {
+          newTree.value = newTree.value.concat(evaluate(node.value[i].value[1]).value);
+        } else newTree.value.push(traverse(node.value[i]));
       }
 
       return newTree;
@@ -327,6 +364,7 @@ var macroTable = {
     if(args.length < 3) throwError("Too few arguments to if.", args);
 
     var bool = evaluate(args[0]);
+
     if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
     if(bool.value) {
       return evaluate(args[1]);
@@ -357,15 +395,27 @@ var macroTable = {
       s = s.replace(/\n|\s+/g, " ");
       if(s.length === 0) continue;
 
-      try {
-        evaluate(parse(s));
-      } catch (e) {
-        console.log(e);
-      }
+      // try {
+      evaluate(parse(s));
+      // } catch (e) {
+      //   // console.error(e);
+      //   throwError(e.toString(), charPos);
+      // }
     }
     console.log("--------------------");
-    return [];
-  }
+    return makeArr(charPos);
+  },
+  "apply-macro": function(args, charPos) {
+    checkNumArgs(charPos, args, 2);
+
+    var func = args[0];
+    var arr = args[1];
+    if(func.type !== "function") throwError("First argument should be a function.", func);
+    if(!isList(arr)) throwError("Second argument should be a list.", func);
+    if(!func.isMacro) throwError("Cannot call apply-macro on functions. Use `apply` instead.", func);
+
+    return evaluate(evalLambda(func, arr.value, charPos));
+  },
 };
 
 var symbolTable = {
@@ -408,7 +458,7 @@ var symbolTable = {
 
     var rest = args[0];
     if(!isList(rest)) throwError("cdr expects a list as unique argument.", rest);
-    return rest.slice(1);
+    return makeArr.apply(null, [charPos].concat(rest.value.slice(1)));
   },
   "car": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
@@ -416,7 +466,7 @@ var symbolTable = {
     var rest = args[0];
     if(!isList(rest)) throwError("car expects a list as unique argument.", rest);
     if(rest.length < 1) throwError("Car not defined on empty lists", rest);
-    return rest[0];
+    return rest.value[0];
   },
   "cons": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
@@ -424,30 +474,29 @@ var symbolTable = {
     var el = args[0];
     var arr = args[1];
 
-    if(!isList(arr)) arr = [arr];
+    if(!isList(arr)) arr = makeArr(charPos, arr);
 
-    return makeArr.apply(null, [charPos, el].concat(arr));
+    return makeArr.apply(null, [charPos, el].concat(arr.value));
   },
   "apply": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
 
     var func = args[0];
     var arr = args[1];
-    if(!isList(arr)) throwError("Second argument should be a list.");
-    if(func.type !== "function") throwError("First argument should be a function.");
+    if(func.type !== "function") throwError("First argument should be a function.", func);
+    if(!isList(arr)) throwError("Second argument should be a list.", func);
+    if(func.isMacro) throwError("Cannot call apply on macros. Use `apply-macro` instead.", func);
 
-    return func.value(arr);
+    return evalLambda(func, arr.value, charPos);
   },
   "equal?" : function(args, charPos) {
-    if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, args);
+    if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, args[0]);
     for (var i = 1; i < args.length; i++){
-
       if (!areStructurallyEqual(args[i], args[0])) return new Node(false, "boolean", -2);
     }
     return new Node(true, "boolean", args);
   },
   "concat": function(args, charPos){
-    checkNumArgs(charPos, args, 2);
     checkNumArgs(charPos, args, 2);
 
     var arr1 = args[0];
@@ -455,23 +504,28 @@ var symbolTable = {
 
     if(!isList(arr1) || !isList(arr2)) throwError("concat takes two lists.");
 
-    return makeArr.apply(null, [charPos].concat(arr1.concat(arr2)));
+    return makeArr.apply(null, [charPos].concat(arr1.value.concat(arr2.value)));
   },
   "split": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
+
     if(args[0].type !== "string") throwError("First argument should be a string", args[0]);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
     return makeArr.apply(null, [args[0].charPos].concat(args[0].value.split(new RegExp(args[1].value)).map(function(x, i) {return new Node(x, "string", charPos + i);})));
   },
   "join": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
-    if(!isList(args[0])) throwError("First argument should be a list", args[0]);
+
+    var list = args[0];
+    if(!isList(list)) throwError("First argument should be a list", list);
     if(args[1].type !== "string") throwError("Second argument should be a string", args[1]);
 
-    return new Node(args[0].reduce(function(acc, val, i) {
-      acc += val.value;
+    return new Node(list.value.reduce(function(acc, val, i) {
+      if(val.type !== "string" && val.type !== "number") throwError("Joined elements should be strings", val);
 
-      if(i < args[0].length - 1) acc += args[1].value;
+      acc += val.value.toString();
+
+      if(i < list.value.length - 1) acc += args[1].value;
       return acc;
     }, ""), "string", charPos);
   },
@@ -489,7 +543,9 @@ var symbolTable = {
   },
   "ref": function(args, charPos){
     checkNumArgs(charPos, args, 1);
-    return new Node(args[0], "ref", charPos);
+    refMapping[args[0].uuid] = args[0];
+
+    return new Node(args[0].uuid, "ref", charPos);
   },
   "set!": function(args, charPos){
     checkNumArgs(charPos, args, 2);
@@ -497,23 +553,25 @@ var symbolTable = {
     // 2nd arg: new val
     if (args[0].type !== 'ref') throwError("First argument to set! must be a ref type.", charPos);
     if (args[1].type === 'ref') throwError("Second argument to set! cannot be a ref type.", charPos);
-    args[0].value = args[1];
-    return args[1];
+
+    args[0].value = args[1].uuid;
+    refMapping[args[1].uuid] = args[1];
+    return args[0];
   },
   "get": function(args, charPos){
     checkNumArgs(charPos, args, 1);
     if (args[0].type !== 'ref') throwError("First argument to get must be a ref type.", charPos);
-    return args[0].value;
+    return refMapping[args[0].value];
   }
 };
 
 function areStructurallyEqual(obj1, obj2){
   if (obj1 === obj2) return true;
   if (isList(obj1) && isList(obj2)){
-    if (obj1.length != obj2.length) return false;
+    if (obj1.value.length != obj2.value.length) return false;
     else {
-      for (var i = 0; i < obj1.length; i++){
-        if (!areStructurallyEqual(obj1[i], obj2[i])) return false;
+      for (var i = 0; i < obj1.value.length; i++){
+        if (!areStructurallyEqual(obj1.value[i], obj2.value[i])) return false;
       }
       return true;
     }
@@ -562,7 +620,7 @@ var utils = {
 
 function addFunction(name, func, docs){
   if (symbolTable[name]){
-    throw new Error("This function with name "+name+" already defined.");
+    throw new Error("A function with name "+name+" already defined.");
   } else {
     symbolTable[name] = func(utils);
     if (docs){
@@ -571,22 +629,57 @@ function addFunction(name, func, docs){
   }
 }
 
-function evaluateWith(toEval, context, macroContext) {
-  localStack.push(context);
+function addMacro(name, func, docs){
+  if (macroTable[name]){
+    throw new Error("A macro with name "+name+" already defined.");
+  } else {
+    macroTable[name] = func(utils);
+    if (docs){
+      macroTable[name].docs = docs;
+    }
+  }
+}
+
+function evaluateWith(toEval, context, macroContext, savedRefMapping) {
+  var prevRefMapping = refMapping;
+  refMapping = savedRefMapping;
+
+  localStack.push(context || {});
   macroStack.push(macroContext || {});
+
+  EVALUATE_WITH = true;
   var res = evaluate(toEval);
-  var newContext = localStack.pop();
-  macroStack.pop();
+  EVALUATE_WITH = false;
+
+  var nextRefMapping = refMapping;
+  refMapping = prevRefMapping;
+
   return {
     res: res,
-    newContext: newContext
+    newContext: localStack.pop(),
+    newMacros: macroStack.pop(),
+    newRefMapping: nextRefMapping,
   };
 }
+
+var uuid = (function() {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+  }
+
+  return function() {
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+      s4() + '-' + s4() + s4() + s4();
+  }
+})();
 
 module.exports = {
   parse: parse,
   evaluate: evaluate,
   prettyPrint: prettyPrint,
   addFunction: addFunction,
+  addMacro: addMacro,
   evaluateWith: evaluateWith
 };

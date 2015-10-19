@@ -1,0 +1,1 @@
+(define-with-default scores (ref (hashmap)))

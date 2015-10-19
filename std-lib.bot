@@ -1,5 +1,5 @@
 (define-macro ; (lambda (x ...) ()))
-
+(define nil '())
 (define-macro nil?
   "Takes a variadic number of arguments. Returns true if all the arguments are null. Returns true when given no arguments."
   (lambda (x ...)
@@ -7,20 +7,20 @@
 
 (define identity (lambda (x) x))
 
-(; define-macro apply 
+(; define-macro apply
    "Takes a fn and an arr and applies the elements of the array to the function as arguments."
    (lambda (fn arr) `(~fn ~@arr)))
 
 (define list (lambda (args ...) args))
 
 (define map (lambda (fn arr)
-  (if (nil? arr) 
+  (if (nil? arr)
     '()
     (concat (list (fn (car arr))) (map fn (cdr arr)))
   )))
 
 (define reduce (lambda (fn base arr)
-  (if (nil? arr) 
+  (if (nil? arr)
     base
     (fn (reduce fn base (cdr arr)) (car arr))))
   )
@@ -115,17 +115,17 @@
        (true (-> (~@(car rest) ~data) ~@(cdr rest))))))
 
 (define nth
-  (lambda (lst n) 
-    (if (equal? n 0) 
+  (lambda (lst n)
+    (if (equal? n 0)
       (car lst)
       (nth (cdr lst) (- n 1)))))
 
 (define hashmap (lambda (init ...)
   (reduce (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
 
-(define assoc 
+(define assoc
         (lambda (hmap key val)
-                (let (m (dedupe (cons (list key val) (hmap)))) 
+                (let (m (dedupe (cons (list key val) (hmap))))
 		             (lambda (args ...)
                              (let (l (len args))
                                   (cond ((equal? 0 l) m)

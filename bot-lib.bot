@@ -1,38 +1,37 @@
+(define-macro ; (lambda (x ...) ""))
+
 (define ping
   (lambda () "pong"))
 
-(define sayit 
+(define sayit
   (lambda () "David's an idiot"))
 
-(define slap 
+(define slap
   (lambda (args ...)
-  (join 
-    (list 
+  (join
+    (list
         (if (nil? args)
         (nth (name-list) (rand (len (name-list))))
         (car args))
-        (if (zero? (rand 2)) 
-        "just got slapped.  Hard." 
+        (if (zero? (rand 2))
+        "just got slapped.  Hard."
         "just got slapped." ))
     " ")
   )
 )
 
-(define hug 
+(define hug
   (lambda (args ...)
-  (join 
-    (list 
+  (join
+    (list
         (if (nil? args)
         (nth (name-list) (rand (len (name-list))))
         (car args))
-        (if (zero? (rand 2)) 
-        "just got a BIG hug." 
+        (if (zero? (rand 2))
+        "just got a BIG hug."
         "just got a hug."))
     " ")
   )
 )
 
-(define scores (ref (hashmap)))
-
-(define ++
-  (lambda (name) "You suck"))
+(define y (lambda () "(y)"))

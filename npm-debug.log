@@ -1,36 +1,39 @@
 0 info it worked if it ends with ok
-1 verbose cli [ 'node', '/usr/local/bin/npm', 'start' ]
-2 info using npm@2.7.3
-3 info using node@v0.12.1
-4 verbose node symlink /usr/local/bin/node
-5 verbose run-script [ 'prestart', 'start', 'poststart' ]
-6 info prestart lisp-bot@0.0.0
-7 info start lisp-bot@0.0.0
-8 verbose unsafe-perm in lifecycle true
-9 info lisp-bot@0.0.0 Failed to exec start script
-10 verbose stack Error: lisp-bot@0.0.0 start: `node index.js`
-10 verbose stack Exit status 1
-10 verbose stack     at EventEmitter.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/lifecycle.js:213:16)
-10 verbose stack     at EventEmitter.emit (events.js:110:17)
-10 verbose stack     at ChildProcess.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/spawn.js:14:12)
-10 verbose stack     at ChildProcess.emit (events.js:110:17)
-10 verbose stack     at maybeClose (child_process.js:1008:16)
-10 verbose stack     at Process.ChildProcess._handle.onexit (child_process.js:1080:5)
-11 verbose pkgid lisp-bot@0.0.0
-12 verbose cwd /Users/benjamin/Desktop/lisp-bot
-13 error Darwin 14.3.0
-14 error argv "node" "/usr/local/bin/npm" "start"
-15 error node v0.12.1
-16 error npm  v2.7.3
-17 error code ELIFECYCLE
-18 error lisp-bot@0.0.0 start: `node index.js`
-18 error Exit status 1
-19 error Failed at the lisp-bot@0.0.0 start script 'node index.js'.
-19 error This is most likely a problem with the lisp-bot package,
-19 error not with npm itself.
-19 error Tell the author that this fails on your system:
-19 error     node index.js
-19 error You can get their info via:
-19 error     npm owner ls lisp-bot
-19 error There is likely additional logging output above.
-20 verbose exit [ 1, true ]
+1 verbose cli [ '/usr/local/Cellar/node/4.1.1/bin/node',
+1 verbose cli   '/usr/local/bin/npm',
+1 verbose cli   'start' ]
+2 info using npm@2.14.4
+3 info using node@v4.1.1
+4 verbose run-script [ 'prestart', 'start', 'poststart' ]
+5 info prestart lisp-bot@0.0.0
+6 info start lisp-bot@0.0.0
+7 verbose unsafe-perm in lifecycle true
+8 info lisp-bot@0.0.0 Failed to exec start script
+9 verbose stack Error: lisp-bot@0.0.0 start: `node index.js`
+9 verbose stack Exit status 1
+9 verbose stack     at EventEmitter.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/lifecycle.js:214:16)
+9 verbose stack     at emitTwo (events.js:87:13)
+9 verbose stack     at EventEmitter.emit (events.js:172:7)
+9 verbose stack     at ChildProcess.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/spawn.js:24:14)
+9 verbose stack     at emitTwo (events.js:87:13)
+9 verbose stack     at ChildProcess.emit (events.js:172:7)
+9 verbose stack     at maybeClose (internal/child_process.js:817:16)
+9 verbose stack     at Process.ChildProcess._handle.onexit (internal/child_process.js:211:5)
+10 verbose pkgid lisp-bot@0.0.0
+11 verbose cwd /Users/sansouci/Desktop/lisp-bot
+12 error Darwin 15.0.0
+13 error argv "/usr/local/Cellar/node/4.1.1/bin/node" "/usr/local/bin/npm" "start"
+14 error node v4.1.1
+15 error npm  v2.14.4
+16 error code ELIFECYCLE
+17 error lisp-bot@0.0.0 start: `node index.js`
+17 error Exit status 1
+18 error Failed at the lisp-bot@0.0.0 start script 'node index.js'.
+18 error This is most likely a problem with the lisp-bot package,
+18 error not with npm itself.
+18 error Tell the author that this fails on your system:
+18 error     node index.js
+18 error You can get their info via:
+18 error     npm owner ls lisp-bot
+18 error There is likely additional logging output above.
+19 verbose exit [ 1, true ]

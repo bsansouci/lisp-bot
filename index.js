@@ -1,24 +1,10 @@
+"use strict";
+
 var login = require("facebook-chat-api");
-var request = require("request");
 var lisp = require("./lisp");
 var Firebase = require("firebase");
 
-// Little binding to prevent heroku from complaining about port binding
-var http = require('http');
-http.createServer(function (req, res) {
-  console.log("ping");
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.end("");
-}).listen(process.env.PORT || 5000);
-
-setInterval(function() {
-  http.get("http://marc-zuckerbot.herokuapp.com", function(res) {
-    console.log("pong");
-  });
-}, 1800000 * Math.random() + 1200000); // between 20 and 50 min
-
-
-var db = new Firebase(process.env.MARC_ZUCKERBOT_FIREBASE);
+var db = new Firebase(process.env.LISP_BOT_FIREBASE);
 var globalScopeDB = db.child("globalScope");
 var allScopesDB = db.child("allScopes");
 
@@ -65,6 +51,31 @@ function startBot(api, globalScope, allScopes) {
     };
   }, "List of names in thread.");
 
+  lisp.addFunction("clear-namespace", function(utils) {
+    return function(args, charPos) {
+      delete globalScope[currentThreadId];
+      return utils.toLispData("Namespace cleared");
+    };
+  }, "Will delete all user-defined values.");
+
+  lisp.addMacro("define-with-default", function(utils) {
+    return function(args, charPos) {
+      utils.checkNumArgs(charPos, args, 2);
+      if(args[0].type !== 'identifier') utils.throwError("First argument to define-with-default should be an identifier.", args[0]);
+
+      if(currentScope[args[0].value]) {
+        return globalScope[currentScope[args[0].value]].node;
+      }
+
+      return lisp.evaluate(utils.makeArr(charPos,
+        new utils.Node("define", "identifier", charPos),
+        new utils.Node(args[0].value, "identifier", charPos),
+        lisp.evaluate(args[1])
+      ));
+    };
+  }, "Will define only if that identifier isn't already defined in the scope (aka loaded from the DB).");
+
+  // Load std-lib and bot-lib
   lisp.evaluate(lisp.parse("(load std-lib)"));
   lisp.evaluate(lisp.parse("(load bot-lib)"));
 
@@ -97,15 +108,8 @@ function startBot(api, globalScope, allScopes) {
     currentUserId = userId;
     currentUsername = username;
     currentOtherUsernames = otherUsernames;
-    currentScope = allScopes[currentThreadId] = allScopes[currentThreadId] || [];
-
-    // Remove one Marc
-    if(currentOtherUsernames.indexOf("Marc") !== -1) {
-      currentOtherUsernames.splice(currentOtherUsernames.indexOf("Marc"), 1);
-    }
-
-    // Remove Marc from this list
-    currentOtherIds = otherIds.filter(function(v) {return v !== 100009069356507;});
+    allScopes[currentThreadId] = allScopes[currentThreadId] || {};
+    currentScope = allScopes[currentThreadId];
 
     parseLisp(message, callback);
   }
@@ -123,35 +127,66 @@ function startBot(api, globalScope, allScopes) {
     }
 
     var outTxt = "";
-    if (inTxt.length > 0){
-      try {
+    if (inTxt.length > 0) {
+      // try {
         var AST = lisp.parse(inTxt);
-        var context = currentScope.reduce(function(acc, v) {
-          acc[globalScope[v].identifier] = globalScope[v].node;
-          return acc;
-        }, {});
+        var context = {};
+        var macros = {};
+        var refs = {};
+        Object.keys(currentScope).forEach(function(identifier) {
+          const uid = currentScope[identifier];
+          if(globalScope[uid].isMacro) {
+            macros[identifier] = globalScope[uid].node;
+          } else {
+            if(globalScope[uid].node.type === 'ref') {
+              refs[globalScope[uid].node.value] = globalScope[globalScope[uid].node.value].node;
+            }
+            context[identifier] = globalScope[uid].node;
+          }
+        });
 
-        var output = lisp.evaluateWith(AST, context);
+        var defaultVars = lisp.evaluateWith(lisp.parse("(load bot-default-variables)"), context, macros, refs);
+        var output = lisp.evaluateWith(AST, defaultVars.newContext, defaultVars.newMacros, defaultVars.newRefMapping);
 
-        for (var i = currentScope.length - 1; i >= 0; i--) {
-          globalScope[currentScope[i]].node = output.newContext[globalScope[currentScope[i]].identifier];
-          delete output.newContext[globalScope[currentScope[i]].identifier];
-        }
+        Object.keys(output.newContext).forEach(function(identifier) {
+          const node = output.newContext[identifier];
+          let writePermissions = [currentThreadId];
+          if(globalScope[node.uuid] && globalScope[node.uuid].writePermissions) {
+            writePermissions = globalScope[node.uuid].writePermissions;
+          }
 
-        for (var prop in output.newContext) {
-          var newEntry = {
-            identifier: prop,
-            node: output.newContext[prop]
+          globalScope[node.uuid] = {
+            node: node,
+            writePermissions: node.type === 'ref' ? writePermissions : null,
+            isMacro: false,
           };
-          var id = genId();
-          globalScope[id] = newEntry;
-          currentScope.push(id);
-        }
 
-        outTxt = lisp.prettyPrint(output.res);
-      } catch (e) {
-        outTxt = e.toString();
-      }
+          currentScope[identifier] = node.uuid;
+        });
+
+        Object.keys(output.newMacros).forEach(function(identifier) {
+          const node = output.newMacros[identifier];
+          globalScope[node.uuid] = {
+            node: node,
+            isMacro: true,
+          };
+
+          currentScope[identifier] = node.uuid;
+        });
+
+        Object.keys(output.newRefMapping).forEach(function(uuid) {
+          const node = output.newRefMapping[uuid];
+
+          globalScope[node.uuid] = {
+            node: node,
+            isMacro: false,
+          };
+        });
+
+        outTxt = lisp.prettyPrint(output.res, output.newRefMapping);
+      // } catch (e) {
+      //   outTxt = e.toString();
+      // }
 
       globalScopeDB.set(globalScope);
       allScopesDB.set(allScopes);
@@ -167,8 +202,6 @@ function startBot(api, globalScope, allScopes) {
   }
 }
 
-var genId;
-
 // Main function
 db.once('value', function(snapshot) {
   var data = snapshot.val() || {};
@@ -177,12 +210,8 @@ db.once('value', function(snapshot) {
     password: process.env.FB_LOGIN_PASSWORD
   }, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
-    genId = (function(counter) {
-      return function() {
-        return counter++;
-      };
-    })(Object.keys(data.globalScope || {}).length);
-    startBot(api, data.globalScope || {}, data.allScopes || {});
+    data.globalScope = data.globalScope || {};
+
+    startBot(api, data.globalScope, data.allScopes || {});
   });
 });
-
