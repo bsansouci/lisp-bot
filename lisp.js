@@ -128,8 +128,6 @@ function evalLambda(func, args, charPos) {
   macroStack.push({});
 
   if(localStack.length > 1024) {
-    localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1);
-    macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1);
     throwError("Stack overflow > 1024", func);
   }
 
@@ -213,6 +211,9 @@ function prettyPrint(node, optionalRefMapping) {
 }
 
 function throwError(str, node) {
+  localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1);
+  macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1);
+
   var charPos, src;
   if(typeof node !== "object") { // We passed a charPos directly
     charPos = node;
