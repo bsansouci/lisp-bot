@@ -465,7 +465,7 @@ var symbolTable = {
 
     var rest = args[0];
     if(!isList(rest)) throwError("car expects a list as unique argument.", rest);
-    if(rest.length < 1) throwError("Car not defined on empty lists", rest);
+    if(rest.value.length < 1) throwError("Car not defined on empty lists", rest);
     return rest.value[0];
   },
   "cons": function(args, charPos) {
