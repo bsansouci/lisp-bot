@@ -205,10 +205,8 @@ function startBot(api, globalScope, allScopes) {
 // Main function
 db.once('value', function(snapshot) {
   var data = snapshot.val() || {};
-  login({
-    email: process.env.FB_LOGIN_EMAIL,
-    password: process.env.FB_LOGIN_PASSWORD
-  }, {forceLogin: true}, function(err, api) {
+  var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
+  login(config, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
     data.globalScope = data.globalScope || {};
 
