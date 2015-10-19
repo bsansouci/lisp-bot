@@ -35,3 +35,6 @@
 )
 
 (define y (lambda () "(y)"))
+
+(define score (lambda (name) (if (nil? ((get scores) name)) 0 ((get scores) name))))
+(define inc-score (lambda (name) (set! scores (assoc (get scores) name (+ 1 (score name))))))

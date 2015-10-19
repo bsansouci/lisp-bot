@@ -53,7 +53,7 @@ function startBot(api, globalScope, allScopes) {
 
   lisp.addFunction("clear-namespace", function(utils) {
     return function(args, charPos) {
-      delete globalScope[currentThreadId];
+      delete allScopes[currentThreadId];
       return utils.toLispData("Namespace cleared");
     };
   }, "Will delete all user-defined values.");
