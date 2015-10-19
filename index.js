@@ -128,13 +128,13 @@ function startBot(api, globalScope, allScopes) {
 
     var outTxt = "";
     if (inTxt.length > 0) {
-      // try {
+      try {
         var AST = lisp.parse(inTxt);
         var context = {};
         var macros = {};
         var refs = {};
         Object.keys(currentScope).forEach(function(identifier) {
-          const uid = currentScope[identifier];
+          var uid = currentScope[identifier];
           if(globalScope[uid].isMacro) {
             macros[identifier] = globalScope[uid].node;
           } else {
@@ -149,8 +149,8 @@ function startBot(api, globalScope, allScopes) {
         var output = lisp.evaluateWith(AST, defaultVars.newContext, defaultVars.newMacros, defaultVars.newRefMapping);
 
         Object.keys(output.newContext).forEach(function(identifier) {
-          const node = output.newContext[identifier];
-          let writePermissions = [currentThreadId];
+          var node = output.newContext[identifier];
+          var writePermissions = [currentThreadId];
           if(globalScope[node.uuid] && globalScope[node.uuid].writePermissions) {
             writePermissions = globalScope[node.uuid].writePermissions;
           }
@@ -165,7 +165,7 @@ function startBot(api, globalScope, allScopes) {
         });
 
         Object.keys(output.newMacros).forEach(function(identifier) {
-          const node = output.newMacros[identifier];
+          var node = output.newMacros[identifier];
           globalScope[node.uuid] = {
             node: node,
             isMacro: true,
@@ -175,7 +175,7 @@ function startBot(api, globalScope, allScopes) {
         });
 
         Object.keys(output.newRefMapping).forEach(function(uuid) {
-          const node = output.newRefMapping[uuid];
+          var node = output.newRefMapping[uuid];
 
           globalScope[node.uuid] = {
             node: node,
@@ -184,9 +184,9 @@ function startBot(api, globalScope, allScopes) {
         });
 
         outTxt = lisp.prettyPrint(output.res, output.newRefMapping);
-      // } catch (e) {
-      //   outTxt = e.toString();
-      // }
+      } catch (e) {
+        outTxt = e.toString();
+      }
 
       globalScopeDB.set(globalScope);
       allScopesDB.set(allScopes);
