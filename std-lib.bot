@@ -1,4 +1,6 @@
-(define-macro ; (lambda (x ...) ()))
+(define-macro ; (lambda (x ...) ())
+  )
+  
 (define nil '())
 (define-macro nil?
   "Takes a variadic number of arguments. Returns true if all the arguments are null. Returns true when given no arguments."
@@ -13,6 +15,8 @@
 
 (define list (lambda (args ...) args))
 
+(define type? (lambda (var type) (equal? (typeof var) type)))
+
 (define map (lambda (fn arr)
   (if (nil? arr)
     '()
@@ -24,6 +28,17 @@
     base
     (fn (reduce fn base (cdr arr)) (car arr))))
   )
+
+(define reverse (lambda (l) (reduce (lambda (a v) (concat a (list v))) '() l)))
+
+(define filter (lambda (pred arr)
+  (reduce (lambda (acc v)
+    (if (pred v)
+      (cons v acc)
+      acc
+    )
+  ) '() arr))
+)
 
 (define zero?
   (lambda (expr)
@@ -116,17 +131,35 @@
 
 (define nth
   (lambda (lst n)
-    (if (equal? n 0)
+    (if (zero? n)
       (car lst)
       (nth (cdr lst) (- n 1)))))
+
+(define remove-nth
+  (lambda (list n)
+    (if (zero? n)
+      (cdr list)
+      (cons (car list) (remove-nth (cdr list) (- n 1)))
+)))
 
 (define hashmap (lambda (init ...)
   (reduce (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
 
+(; This relies on the fact that reduce works right-to-left)
 (define assoc
+    (let (hm-dedupe (lambda (map)
+      (reduce (lambda (acc k)
+        (if (contain? (lambda (e) (car e)) (car k) acc)
+          acc
+          (cons k acc)
+        ) )
+        '()
+        map
+      )
+    ))
         (lambda (hmap key val)
-                (let (m (dedupe (cons (list key val) (hmap))))
+                (let (m (hm-dedupe (concat (hmap) (list (list key val)))))
 		             (lambda (args ...)
                              (let (l (len args))
                                   (cond ((equal? 0 l) m)
-                                        ((equal? 1 l) (reduce (lambda (acc v) (if (equal? (car v) (car args)) (car (cdr v)) acc)) '() m))))))))
+                                        ((equal? 1 l) (reduce (lambda (acc v) (if (equal? (car v) (car args)) (car (cdr v)) acc)) '() m)))))))))

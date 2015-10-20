@@ -38,7 +38,10 @@ function parseHelper(str, charPos) {
 
     // Strings
     if(str.charAt(0) === "\"" && str.charAt(str.length - 1) === "\"") {
-      return new Node(str.substring(1, str.length - 1), "string", charPos);
+      return new Node(str.substring(1, str.length - 1)
+        .replace(/\\(.)/g, (match, cap) =>
+          ( cap === "n" ? "\n" : cap))
+        , "string", charPos);
     }
 
     return new Node(str, "identifier", charPos);
@@ -122,8 +125,8 @@ function evalLambda(func, args, charPos) {
   // create a new scope for that function
   var tmp = localStack;
   var macroTmp = macroStack;
-  localStack = localStack.concat(func.scope || []);
-  macroStack = macroStack.concat(func.macroScope || []);
+  localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1).concat(func.scope || []);
+  macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1).concat(func.macroScope || []);
   localStack.push(map);
   macroStack.push({});
 
@@ -541,6 +544,10 @@ var symbolTable = {
     }
     return new Node(r, "number", charPos);
     //{docs : "Returns value between 0 and 1 with no args, 0 and max with 1 arg, and min and max with 2 args."}
+  },
+  "typeof": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    return new Node(args[0].type, "string", charPos);
   },
   "ref": function(args, charPos){
     checkNumArgs(charPos, args, 1);
