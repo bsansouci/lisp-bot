@@ -1,38 +1,91 @@
 (define-macro ; (lambda (x ...) ())
   )
-  
+
 (define nil '())
-(define-macro nil?
-  "Takes a variadic number of arguments. Returns true if all the arguments are null. Returns true when given no arguments."
-  (lambda (x ...)
-    `(equal? () () ~@x)))
+
+(define nil?
+  "Returns true if argument is nil."
+  (lambda (x) (equal? () x)))
 
 (define identity (lambda (x) x))
 
 (; define-macro apply
    "Takes a fn and an arr and applies the elements of the array to the function as arguments."
-   (lambda (fn arr) `(~fn ~@arr)))
+   (lambda (fn arr) `(~fn ~@arr))
+)
 
 (define list (lambda (args ...) args))
 
 (define type? (lambda (var type) (equal? (typeof var) type)))
 
-(define map (lambda (fn arr)
-  (if (nil? arr)
-    '()
-    (concat (list (fn (car arr))) (map fn (cdr arr)))
-  )))
+(define-macro cond
+  "Todo"
+  (lambda (x rest ...)
+  `(if ~(car x)
+       ~(car (cdr x))
+        (if ~(nil? rest)
+          ()
+          (cond ~@rest)))))
 
-(define reduce (lambda (fn base arr)
-  (if (nil? arr)
-    base
-    (fn (reduce fn base (cdr arr)) (car arr))))
+(define car' (lambda (arrs)
+  (if (nil? arrs)
+    nil
+    (cons
+      (car (car arrs))
+      (car' (cdr arrs))
+    )
   )
+))
 
-(define reverse (lambda (l) (reduce (lambda (a v) (concat a (list v))) '() l)))
+(define cdr' (lambda (arrs)
+  (if (nil? arrs)
+    nil
+    (cons (cdr (car arrs)) (cdr' (cdr arrs)))
+  )
+))
+
+(define map (lambda (fn arrs ...)
+  (cond
+    ((nil? arrs) "Call map with at least one array.")
+    ((has-nil? arrs) nil)
+    (true (concat (list (apply fn (car' arrs))) (apply map (cons fn (cdr' arrs)))))
+  )
+))
+
+(define has-nil? (lambda (arr)
+  (if (nil? arr)
+    false
+    (or (nil? (car arr)) (has-nil? (cdr arr)))
+  )
+))
+
+(define reduce (lambda (fn base arrs ...)
+  (cond
+    ((nil? arrs) "Call reduce with at least one array.")
+    ((has-nil? arrs) base)
+    (true (apply fn (cons (apply foldr' (cons fn (cons base (cdr' arrs)))) (car' arrs))))
+  )
+))
+
+(define foldr (lambda (fn base lst)
+  (if (nil? lst)
+    base
+    (fn (foldr fn base (cdr lst)) (car lst)))))
+
+(define foldl (lambda (fn base lst)
+  (if (nil? lst)
+    base
+    (foldl fn
+      (fn base (car lst))
+      (cdr lst)))))
+
+(define contain? (lambda (fn key arr)
+   (foldr (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
+
+(define reverse (lambda (l) (foldr (lambda (a v) (concat a (list v))) '() l)))
 
 (define filter (lambda (pred arr)
-  (reduce (lambda (acc v)
+  (foldr (lambda (acc v)
     (if (pred v)
       (cons v acc)
       acc
@@ -67,12 +120,9 @@
       `(if ~x true (or ~@args)))))
 
 (define len (lambda (coll)
-  (reduce (lambda (acc _) (+ acc 1)) 0 coll)))
+  (foldr (lambda (acc _) (+ acc 1)) 0 coll)))
 
-(define contain? (lambda (fn key arr)
-                 (reduce (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
-
-(define dedupe (lambda (arr) (reduce (lambda (acc x) (if (contain? identity x acc) acc (cons x acc))) '() arr)))
+(define dedupe (lambda (arr) (foldr (lambda (acc x) (if (contain? identity x acc) acc (cons x acc))) '() arr)))
 
 (define even-len? (lambda (coll)
   (if (nil? coll)
@@ -99,15 +149,6 @@
   "Todo"
   (lambda (vars body)
     `((lambda ~(every-other-even vars) ~body) ~@(every-other-odd vars))))
-
-(define-macro cond
-  "Todo"
-  (lambda (x rest ...)
-  `(if ~(car x)
-       ~(car (cdr x))
-        (if ~(nil? rest)
-          ()
-          (cond ~@rest)))))
 
 (define-macro ->>
   "Usage: (->> x & funcs)
@@ -142,13 +183,22 @@
       (cons (car list) (remove-nth (cdr list) (- n 1)))
 )))
 
-(define hashmap (lambda (init ...)
-  (reduce (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
+(define range (lambda (fst args ...)
+  (if (nil? args)
+    (range 0 fst)
+    (if (equal? fst (car args))
+      nil
+      (cons fst (range (+ 1 fst) (car args)))
+    )
+  )
+))
 
-(; This relies on the fact that reduce works right-to-left)
+(define hashmap (lambda (init ...)
+  (foldr (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
+
 (define assoc
     (let (hm-dedupe (lambda (map)
-      (reduce (lambda (acc k)
+      (foldl (lambda (acc k)
         (if (contain? (lambda (e) (car e)) (car k) acc)
           acc
           (cons k acc)
@@ -157,9 +207,9 @@
         map
       )
     ))
-        (lambda (hmap key val)
-                (let (m (hm-dedupe (concat (hmap) (list (list key val)))))
-		             (lambda (args ...)
-                             (let (l (len args))
-                                  (cond ((equal? 0 l) m)
-                                        ((equal? 1 l) (reduce (lambda (acc v) (if (equal? (car v) (car args)) (car (cdr v)) acc)) '() m)))))))))
+    (lambda (hmap key val)
+            (let (m (hm-dedupe (cons (list key val) (hmap))))
+             (lambda (args ...)
+                         (let (l (len args))
+                              (cond ((equal? 0 l) m)
+                                    ((equal? 1 l) (foldr (lambda (acc v) (if (equal? (car v) (car args)) (car (cdr v)) acc)) '() m)))))))))

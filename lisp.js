@@ -257,10 +257,12 @@ var macroTable = {
     var maybeFunc = getLocal(localStack, args[0].value);
     if(maybeFunc) return new Node(maybeFunc.docs, "string", args[0].charPos);
 
-    throw new Error("Undefined identifier '"+args[0].value+"'.");
+    throwError("Undefined identifier '"+args[0].value+"'.", charPos);
   },
   "define": function(args, charPos) {
-    checkNumArgs(charPos, args, 2);
+    if (args.length !== 2 && args.length !== 3){
+      throwError("Improper number of arguments to define. Expected: 2 or 3, got: "+args.length,charPos);
+    }
 
     var name = args[0];
     if(name.type !== "identifier") {
@@ -272,7 +274,7 @@ var macroTable = {
     var body = args[1];
     var docs = "No docs";
     // Adding optional comments when defining functions
-    if(body.type === "string" && args.length > 2) {
+    if(body.type === "string" && args.length === 3) {
       docs = body.value;
       body = args[2];
     }
