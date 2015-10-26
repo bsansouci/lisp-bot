@@ -3,7 +3,6 @@
 var fs = require("fs");
 
 var sourceString = "";
-var EVALUATE_WITH = false;
 
 function parse(str) {
   sourceString = str;
@@ -105,7 +104,21 @@ function evaluate(ast) {
 }
 
 function evalLambda(func, args, charPos) {
-  if(typeof func.value === 'function') return func.value(args, charPos);
+  if(localStack.length > 512) {
+    throwError("Stack overflow > 512", func);
+  }
+
+  if(typeof func.value === 'function') {
+    localStack.push(Object.assign({}, localStack[localStack.length - 1]))
+    try {
+      var ret = func.value(args, charPos);
+      localStack.pop();
+      return ret;
+    } catch(e) {
+      localStack.pop();
+      throw e;
+    }
+  }
   var argNames = func.argNames.value || [];
 
   var variadicArgs = argNames.length > 1 && argNames[argNames.length - 1].value === "...";
@@ -114,39 +127,50 @@ function evalLambda(func, args, charPos) {
   }
 
   var map = {};
-  for (var i = 0; i < argNames.length; i++) {
-    map[argNames[i].value] = args[i] ? args[i] : makeArr(charPos);
+  var argsUuidMap = {};
+
+  // This is so we don't add "..."
+  var length = argNames.length - (variadicArgs ? 1 : 0);
+  for (var i = 0; i < length; i++) {
+    var node = args[i] ? args[i] : makeArr(charPos);
+
+    uuidToNodeMap[node.uuid] = node;
+    argsUuidMap[node.uuid] = node;
+    map[argNames[i].value] = node.uuid;
   }
+
   if(variadicArgs) {
-    map[argNames[argNames.length - 2].value] = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
-    delete map["..."];
+    var node = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
+    uuidToNodeMap[node.uuid] = node;
+    argsUuidMap[node.uuid] = node;
+    map[argNames[argNames.length - 2].value] = node.uuid;
   }
 
   // create a new scope for that function
-  var tmp = localStack;
-  var macroTmp = macroStack;
-  localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1).concat(func.scope || []);
-  macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1).concat(func.macroScope || []);
-  localStack.push(map);
-  macroStack.push({});
-
-  if(localStack.length > 1024) {
-    throwError("Stack overflow > 1024", func);
+  localStack.push(Object.assign({}, func.scope, map));
+  macroStack.push(Object.assign({}, func.macroScope));
+  try {
+    var result = evaluate(func.value);
+    localStack.pop();
+    macroStack.pop();
+    return result;
+  } catch(e) {
+    var savedStack = localStack.pop();
+    var savedMacro = macroStack.pop();
+    // TODO: Do something with the stacktrace plz
+    throw e;
   }
-
-  var result = evaluate(func.value);
-
-  localStack = tmp;
-  macroStack = macroTmp;
-
-  return result;
 }
 
 function getLocal(stack, name) {
-  for (var i = stack.length - 1; i >= 0; i--) {
-    if(stack[i].hasOwnProperty(name)) return stack[i][name];
+  var uuid = stack[stack.length - 1][name];
+  if(uuid != null && !uuidToNodeMap.hasOwnProperty(uuid)) {
+    throw new Error("Couldn't find node of " + name + " with uuid " + uuid + ".");
   }
 
+  if(uuid != null && uuidToNodeMap.hasOwnProperty(uuid)) {
+    return uuidToNodeMap[uuid];
+  }
   return null;
 }
 
@@ -186,7 +210,7 @@ function merge(obj1, obj2) {
 
 function prettyPrint(node, optionalRefMapping) {
   if (typeof node === "undefined") return "undefined";
-  if(!optionalRefMapping) optionalRefMapping = refMapping;
+  if(!optionalRefMapping) optionalRefMapping = uuidToNodeMap;
 
   if(!isList(node)) {
     switch(node.type) {
@@ -214,9 +238,6 @@ function prettyPrint(node, optionalRefMapping) {
 }
 
 function throwError(str, node) {
-  localStack = localStack.slice(0, EVALUATE_WITH ? 2 : 1);
-  macroStack = macroStack.slice(0, EVALUATE_WITH ? 2 : 1);
-
   var charPos, src;
   if(typeof node !== "object") { // We passed a charPos directly
     charPos = node;
@@ -241,7 +262,7 @@ function checkNumArgs(charPos, args, num) {
 
 var localStack = [{}];
 var macroStack = [{}];
-var refMapping = {};
+var uuidToNodeMap = {};
 
 var macroTable = {
   "docs": function(args, charPos) {
@@ -298,7 +319,9 @@ var macroTable = {
     // Attach the docs to the object inside the localStack
     res.docs = docs;
 
-    localStack[localStack.length - 1][name.value] = res;
+    uuidToNodeMap[res.uuid] = res;
+    localStack[localStack.length - 1][name.value] = res.uuid;
+
     return res;
   },
   "lambda": function(args, charPos) {
@@ -308,13 +331,17 @@ var macroTable = {
     if(!isList(argNames)) throwError("argNames should be a list of arguments.", argNames);
 
     for (var i = 0; i < argNames.value.length; i++) {
-      if(isList(argNames.value[i])) throwError("argNames can't be lists.", argNames.value[i]);
+      if(argNames.value[i].type !== 'identifier') throwError("argNames should be identifier.", argNames.value[i]);
     }
 
     var body = args[1];
-    var defaultStackSize = EVALUATE_WITH ? 2 : 1;
 
-    return new Node(body, "function", argNames.charPos, {scope: localStack.slice(defaultStackSize).map(v => JSON.parse(JSON.stringify(v))), macroScope: macroStack.slice(defaultStackSize).map(v => JSON.parse(JSON.stringify(v))), argNames: argNames});
+    return new Node(body, "function", argNames.charPos,
+      {
+        scope: localStack[localStack.length - 1],
+        macroScope: macroStack[macroStack.length - 1],
+        argNames: argNames
+      });
   },
   "quote": function(args, charPos) {
     return args[0];
@@ -343,7 +370,8 @@ var macroTable = {
     evaledLambda.docs = docs;
     evaledLambda.isMacro = true;
 
-    macroStack[macroStack.length - 1][name.value] = evaledLambda;
+    uuidToNodeMap[evaledLambda.uuid] = evaledLambda;
+    macroStack[macroStack.length - 1][name.value] = evaledLambda.uuid;
 
     return evaledLambda;
   },
@@ -425,6 +453,9 @@ var macroTable = {
 };
 
 var symbolTable = {
+   "<": function(args, charPos) {
+    return new Node(args[0].value < args[1].value, "boolean", charPos);
+  },
   "+": function(args, charPos) {
     if(args.length === 0) return [];
 
@@ -553,7 +584,7 @@ var symbolTable = {
   },
   "ref": function(args, charPos){
     checkNumArgs(charPos, args, 1);
-    refMapping[args[0].uuid] = args[0];
+    uuidToNodeMap[args[0].uuid] = args[0];
 
     return new Node(args[0].uuid, "ref", charPos);
   },
@@ -565,13 +596,13 @@ var symbolTable = {
     if (args[1].type === 'ref') throwError("Second argument to set! cannot be a ref type.", charPos);
 
     args[0].value = args[1].uuid;
-    refMapping[args[1].uuid] = args[1];
+    uuidToNodeMap[args[1].uuid] = args[1];
     return args[0];
   },
   "get": function(args, charPos){
     checkNumArgs(charPos, args, 1);
     if (args[0].type !== 'ref') throwError("First argument to get must be a ref type.", charPos);
-    return refMapping[args[0].value];
+    return uuidToNodeMap[args[0].value];
   }
 };
 
@@ -639,7 +670,7 @@ function addFunction(name, func, docs){
   }
 }
 
-function addMacro(name, func, docs){
+function addMacro(name, func, docs) {
   if (macroTable[name]){
     throw new Error("A macro with name "+name+" already defined.");
   } else {
@@ -650,24 +681,44 @@ function addMacro(name, func, docs){
   }
 }
 
-function evaluateWith(toEval, context, macroContext, savedRefMapping) {
-  var prevRefMapping = refMapping;
-  refMapping = savedRefMapping;
+function unmerge(mergedThing, previousOne1) {
+  return Object.keys(mergedThing).reduce(function(obj, key) {
+    if(previousOne1.hasOwnProperty(key) && mergedThing[key] === previousOne1[key]) {
+      return obj;
+    }
 
-  localStack.push(context || {});
-  macroStack.push(macroContext || {});
+    obj[key] = mergedThing[key];
+    return obj;
+  }, {});
+}
 
-  EVALUATE_WITH = true;
+function evaluateWith(toEval, context, macroContext, savedUuidToNodeMap) {
+  var savedLocalStack0 = localStack[0];
+  var savedMacroStack0 = macroStack[0];
+
+  var mergedStackFrame = Object.assign({}, savedLocalStack0, context);
+  var mergedMacroFrame = Object.assign({}, savedMacroStack0, macroContext);
+
+  var prevUuidMapping = uuidToNodeMap;
+  uuidToNodeMap = Object.assign({}, prevUuidMapping, savedUuidToNodeMap);
+
+  localStack = [mergedStackFrame];
+  macroStack = [mergedMacroFrame];
+
   var res = evaluate(toEval);
-  EVALUATE_WITH = false;
 
-  var nextRefMapping = refMapping;
-  refMapping = prevRefMapping;
+  var nextRefMapping = unmerge(uuidToNodeMap, prevUuidMapping);
+  var newContext = unmerge(localStack[0], savedLocalStack0);
+  var newMacros = unmerge(macroStack[0], savedMacroStack0);
+
+  uuidToNodeMap = prevUuidMapping;
+  localStack = [savedLocalStack0];
+  macroStack = [savedMacroStack0];
 
   return {
     res: res,
-    newContext: localStack.pop(),
-    newMacros: macroStack.pop(),
+    newContext: newContext,
+    newMacros: newMacros,
     newRefMapping: nextRefMapping,
   };
 }
