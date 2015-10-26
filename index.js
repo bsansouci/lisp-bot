@@ -132,7 +132,7 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 
     var outTxt = "";
     if (inTxt.length > 0) {
-      // try {
+      try {
         var AST = lisp.parse(inTxt);
         var availableNodes = {};
         Object.keys(globalScope).forEach(function(uuid) {
@@ -179,9 +179,9 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
         });
 
         outTxt = lisp.prettyPrint(output.res, output.newUuidToNodeMap);
-      // } catch (e) {
-        // outTxt = e.toString();
-      // }
+      } catch (e) {
+        outTxt = e.toString();
+      }
 
       globalScopeDB.set(globalScope);
       allStackFramesDB.set(allStackFrames);
