@@ -79,9 +79,6 @@
       (fn base (car lst))
       (cdr lst)))))
 
-(define contain? (lambda (fn key arr)
-   (foldr (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
-
 (define reverse (lambda (l) (foldr (lambda (a v) (concat a (list v))) '() l)))
 
 (define filter (lambda (pred arr)
@@ -118,6 +115,9 @@
     (if (nil? args)
       x
       `(if ~x true (or ~@args)))))
+
+(define contain? (lambda (fn key arr)
+   (foldr (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
 
 (define len (lambda (coll)
   (foldr (lambda (acc _) (+ acc 1)) 0 coll)))

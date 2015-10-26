@@ -3,6 +3,7 @@
 var fs = require("fs");
 
 var sourceString = "";
+var recurFunctionStack = [];
 
 function parse(str) {
   sourceString = str;
@@ -76,10 +77,11 @@ function evaluate(ast) {
       return ast;
     }
     var maybeLocal = getLocal(localStack, ast.value);
-    if(maybeLocal) return maybeLocal;
+
+    if(maybeLocal != null) return maybeLocal;
     if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
 
-    return throwError("Undeclared identifier `" + ast.value + "`", ast);
+    throwError("Undeclared identifier `" + ast.value + "`", ast);
   }
   if(ast.value.length === 0) return ast;
 
@@ -96,7 +98,6 @@ function evaluate(ast) {
   }
 
   var evaledAST = ast.value.map(evaluate);
-
   var func = evaledAST[0];
   if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function.", firstElem);
 
@@ -105,17 +106,20 @@ function evaluate(ast) {
 
 function evalLambda(func, args, charPos) {
   if(localStack.length > 512) {
-    throwError("Stack overflow > 512", func);
+    throwError("Stack overflow > 512");
   }
 
   if(typeof func.value === 'function') {
-    localStack.push(Object.assign({}, localStack[localStack.length - 1]))
+    localStack.push(Object.assign({}, localStack[localStack.length - 1]));
+    macroStack.push(Object.assign({}, macroStack[macroStack.length - 1]));
     try {
       var ret = func.value(args, charPos);
       localStack.pop();
+      macroStack.pop();
       return ret;
     } catch(e) {
       localStack.pop();
+      macroStack.pop();
       throw e;
     }
   }
@@ -127,7 +131,6 @@ function evalLambda(func, args, charPos) {
   }
 
   var map = {};
-  var argsUuidMap = {};
 
   // This is so we don't add "..."
   var length = argNames.length - (variadicArgs ? 1 : 0);
@@ -135,14 +138,12 @@ function evalLambda(func, args, charPos) {
     var node = args[i] ? args[i] : makeArr(charPos);
 
     uuidToNodeMap[node.uuid] = node;
-    argsUuidMap[node.uuid] = node;
     map[argNames[i].value] = node.uuid;
   }
 
   if(variadicArgs) {
     var node = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
     uuidToNodeMap[node.uuid] = node;
-    argsUuidMap[node.uuid] = node;
     map[argNames[argNames.length - 2].value] = node.uuid;
   }
 
@@ -150,7 +151,9 @@ function evalLambda(func, args, charPos) {
   localStack.push(Object.assign({}, func.scope, map));
   macroStack.push(Object.assign({}, func.macroScope));
   try {
+    recurFunctionStack.push(func);
     var result = evaluate(func.value);
+    recurFunctionStack.pop();
     localStack.pop();
     macroStack.pop();
     return result;
@@ -167,10 +170,10 @@ function getLocal(stack, name) {
   if(uuid != null && !uuidToNodeMap.hasOwnProperty(uuid)) {
     throw new Error("Couldn't find node of " + name + " with uuid " + uuid + ".");
   }
-
   if(uuid != null && uuidToNodeMap.hasOwnProperty(uuid)) {
     return uuidToNodeMap[uuid];
   }
+
   return null;
 }
 
@@ -179,6 +182,9 @@ function isList(a) {
 }
 
 function Node(value, type, charPos, extras) {
+  // if(!uuidToNodeMap.hasOwnProperty(value.uuid)) {
+  //   throw new Error("Making a node with a value that's not in the uuidToNodeMap with uuid " + value.uuid);
+  // }
   var node = {
     src: sourceString,
     value: value,
@@ -187,7 +193,7 @@ function Node(value, type, charPos, extras) {
     uuid: uuid(),
   };
   if(extras) node = merge(node, extras);
-  if(typeof value === "function") node.value = value.bind(node);
+  // if(typeof value === "function") node.value = value.bind(node);
 
   return node;
 }
@@ -208,6 +214,7 @@ function merge(obj1, obj2) {
   return ret;
 }
 
+// Todo: I'm pretty sure there's something wrong there
 function prettyPrint(node, optionalRefMapping) {
   if (typeof node === "undefined") return "undefined";
   if(!optionalRefMapping) optionalRefMapping = uuidToNodeMap;
@@ -319,6 +326,11 @@ var macroTable = {
     // Attach the docs to the object inside the localStack
     res.docs = docs;
 
+    // If the node res is a function, add itself to the scope so it can recurse
+    if(res.type === 'function') {
+      res.scope[name.value] = res.uuid;
+    }
+
     uuidToNodeMap[res.uuid] = res;
     localStack[localStack.length - 1][name.value] = res.uuid;
 
@@ -338,8 +350,8 @@ var macroTable = {
 
     return new Node(body, "function", argNames.charPos,
       {
-        scope: localStack[localStack.length - 1],
-        macroScope: macroStack[macroStack.length - 1],
+        scope: Object.assign({}, localStack[localStack.length - 1]),
+        macroScope: Object.assign({}, macroStack[macroStack.length - 1]),
         argNames: argNames
       });
   },
@@ -365,10 +377,16 @@ var macroTable = {
 
     // Attach the docs to the object inside the localStack using the
     // extras param in new Node constructor
-    const evaledLambda = evaluate(lambda);
+    var evaledLambda = evaluate(lambda);
 
     evaledLambda.docs = docs;
     evaledLambda.isMacro = true;
+
+    // If the node evaledLambda is a function, add itself to the scope so it can
+    // recurse
+    if(evaledLambda.type === 'function') {
+      evaledLambda.macroScope[name.value] = evaledLambda.uuid;
+    }
 
     uuidToNodeMap[evaledLambda.uuid] = evaledLambda;
     macroStack[macroStack.length - 1][name.value] = evaledLambda.uuid;
@@ -602,8 +620,25 @@ var symbolTable = {
   "get": function(args, charPos){
     checkNumArgs(charPos, args, 1);
     if (args[0].type !== 'ref') throwError("First argument to get must be a ref type.", charPos);
+
+    if(!uuidToNodeMap.hasOwnProperty(args[0].value)) {
+      throwError("Couldn't find ref.", args[0]);
+    }
     return uuidToNodeMap[args[0].value];
-  }
+  },
+  "recur": function(args, charPos) {
+    if(recurFunctionStack.length === 0) {
+      throwError("Cannot call recur outside of a lambda", charPos);
+    }
+    var func = recurFunctionStack[recurFunctionStack.length - 1];
+    var argNames = func.argNames.value || [];
+    var variadicArgs = argNames.length > 1 && argNames[argNames.length - 1].value === "...";
+    if(!variadicArgs && args.length !== argNames.length) {
+      throwError("Wrong number of arguments passed to recur.", charPos);
+    }
+
+    return evalLambda(func, args, charPos);
+  },
 };
 
 function areStructurallyEqual(obj1, obj2){
@@ -683,7 +718,7 @@ function addMacro(name, func, docs) {
 
 function unmerge(mergedThing, previousOne1) {
   return Object.keys(mergedThing).reduce(function(obj, key) {
-    if(previousOne1.hasOwnProperty(key) && mergedThing[key] === previousOne1[key]) {
+    if(previousOne1.hasOwnProperty(key) && areStructurallyEqual(mergedThing[key], previousOne1[key])) {
       return obj;
     }
 
@@ -700,15 +735,14 @@ function evaluateWith(toEval, context, macroContext, savedUuidToNodeMap) {
   var mergedMacroFrame = Object.assign({}, savedMacroStack0, macroContext);
 
   var prevUuidMapping = uuidToNodeMap;
-  uuidToNodeMap = Object.assign({}, prevUuidMapping, savedUuidToNodeMap);
+  uuidToNodeMap = Object.assign({}, uuidToNodeMap, savedUuidToNodeMap);
 
   localStack = [mergedStackFrame];
   macroStack = [mergedMacroFrame];
-
   var res = evaluate(toEval);
 
-  var nextRefMapping = unmerge(uuidToNodeMap, prevUuidMapping);
-  var newContext = unmerge(localStack[0], savedLocalStack0);
+  var nextUuidToNodeMap = unmerge(uuidToNodeMap, prevUuidMapping);
+  var newStackFrame = unmerge(localStack[0], savedLocalStack0);
   var newMacros = unmerge(macroStack[0], savedMacroStack0);
 
   uuidToNodeMap = prevUuidMapping;
@@ -717,9 +751,9 @@ function evaluateWith(toEval, context, macroContext, savedUuidToNodeMap) {
 
   return {
     res: res,
-    newContext: newContext,
+    newStackFrame: newStackFrame,
     newMacros: newMacros,
-    newRefMapping: nextRefMapping,
+    newUuidToNodeMap: nextUuidToNodeMap,
   };
 }
 

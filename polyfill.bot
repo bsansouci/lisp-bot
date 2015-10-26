@@ -1,4 +1,6 @@
+(;
 (define name-list (lambda () '("Benjamin" "Avery")))
 
 (define scores (ref (hashmap)))
 (define lists (ref (hashmap)))
+)

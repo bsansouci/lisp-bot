@@ -6,16 +6,18 @@ var Firebase = require("firebase");
 
 var db = new Firebase(process.env.LISP_BOT_FIREBASE);
 var globalScopeDB = db.child("globalScope");
-var allScopesDB = db.child("allScopes");
+var allStackFramesDB = db.child("allStackFrames");
+var allMacrosDB = db.child("allMacros");
 
-function startBot(api, globalScope, allScopes) {
+function startBot(api, globalScope, allStackFrames, allMacros) {
   var currentUsername;
   var currentUserId;
   var currentThreadId;
   var currentChat;
   var currentOtherUsernames;
   var currentOtherIds;
-  var currentScope;
+  var currentStackFrame;
+  var currentMacros;
 
   lisp.addFunction("listen", function (utils){
     return function(args, charPos){
@@ -53,7 +55,7 @@ function startBot(api, globalScope, allScopes) {
 
   lisp.addFunction("clear-namespace", function(utils) {
     return function(args, charPos) {
-      delete allScopes[currentThreadId];
+      delete allStackFrames[currentThreadId];
       return utils.toLispData("Namespace cleared");
     };
   }, "Will delete all user-defined values.");
@@ -63,8 +65,8 @@ function startBot(api, globalScope, allScopes) {
       utils.checkNumArgs(charPos, args, 2);
       if(args[0].type !== 'identifier') utils.throwError("First argument to define-with-default should be an identifier.", args[0]);
 
-      if(currentScope[args[0].value]) {
-        return globalScope[currentScope[args[0].value]].node;
+      if(currentStackFrame[args[0].value]) {
+        return globalScope[currentStackFrame[args[0].value]].node;
       }
 
       return lisp.evaluate(utils.makeArr(charPos,
@@ -108,8 +110,10 @@ function startBot(api, globalScope, allScopes) {
     currentUserId = userId;
     currentUsername = username;
     currentOtherUsernames = otherUsernames;
-    allScopes[currentThreadId] = allScopes[currentThreadId] || {};
-    currentScope = allScopes[currentThreadId];
+    allStackFrames[currentThreadId] = allStackFrames[currentThreadId] || {};
+    currentStackFrame = allStackFrames[currentThreadId];
+    allMacros[currentThreadId] = allMacros[currentThreadId] || {};
+    currentMacros = allMacros[currentThreadId];
 
     parseLisp(message, callback);
   }
@@ -128,68 +132,60 @@ function startBot(api, globalScope, allScopes) {
 
     var outTxt = "";
     if (inTxt.length > 0) {
-      try {
+      // try {
         var AST = lisp.parse(inTxt);
-        var context = {};
-        var macros = {};
-        var refs = {};
-        Object.keys(currentScope).forEach(function(identifier) {
-          var uid = currentScope[identifier];
-          if(globalScope[uid].isMacro) {
-            macros[identifier] = globalScope[uid].node;
-          } else {
-            if(globalScope[uid].node.type === 'ref') {
-              refs[globalScope[uid].node.value] = globalScope[globalScope[uid].node.value].node;
-            }
-            context[identifier] = globalScope[uid].node;
-          }
+        var availableNodes = {};
+        Object.keys(globalScope).forEach(function(uuid) {
+          availableNodes[uuid] = globalScope[uuid].node;
         });
 
-        var defaultVars = lisp.evaluateWith(lisp.parse("(load bot-default-variables)"), context, macros, refs);
-        var output = lisp.evaluateWith(AST, defaultVars.newContext, defaultVars.newMacros, defaultVars.newRefMapping);
+        var defaultVars = lisp.evaluateWith(lisp.parse("(load bot-default-variables)"), currentStackFrame, currentMacros, availableNodes);
+        var output = lisp.evaluateWith(AST, defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
 
-        Object.keys(output.newContext).forEach(function(identifier) {
-          var node = output.newContext[identifier];
+        Object.keys(output.newStackFrame).forEach(function(identifier) {
+          var uuid = output.newStackFrame[identifier];
+          var node = output.newUuidToNodeMap[uuid];
           var writePermissions = [currentThreadId];
-          if(globalScope[node.uuid] && globalScope[node.uuid].writePermissions) {
-            writePermissions = globalScope[node.uuid].writePermissions;
+          if(globalScope[uuid] && globalScope[uuid].writePermissions) {
+            writePermissions = globalScope[uuid].writePermissions;
           }
-
-          globalScope[node.uuid] = {
+          globalScope[uuid] = {
             node: node,
             writePermissions: node.type === 'ref' ? writePermissions : null,
             isMacro: false,
           };
 
-          currentScope[identifier] = node.uuid;
+          currentStackFrame[identifier] = uuid;
         });
 
         Object.keys(output.newMacros).forEach(function(identifier) {
-          var node = output.newMacros[identifier];
-          globalScope[node.uuid] = {
+          var uuid = output.newMacros[identifier];
+          var node = output.newUuidToNodeMap[uuid];
+          globalScope[uuid] = {
             node: node,
             isMacro: true,
           };
 
-          currentScope[identifier] = node.uuid;
+          currentStackFrame[identifier] = uuid;
         });
 
-        Object.keys(output.newRefMapping).forEach(function(uuid) {
-          var node = output.newRefMapping[uuid];
+        Object.keys(output.newUuidToNodeMap).forEach(function(uuid) {
+          var node = output.newUuidToNodeMap[uuid];
 
-          globalScope[node.uuid] = {
+          globalScope[uuid] = {
             node: node,
             isMacro: false,
           };
         });
 
-        outTxt = lisp.prettyPrint(output.res, output.newRefMapping);
-      } catch (e) {
-        outTxt = e.toString();
-      }
+        outTxt = lisp.prettyPrint(output.res, output.newUuidToNodeMap);
+      // } catch (e) {
+        // outTxt = e.toString();
+      // }
 
       globalScopeDB.set(globalScope);
-      allScopesDB.set(allScopes);
+      allStackFramesDB.set(allStackFrames);
+      allMacrosDB.set(allMacros);
 
       if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
         outTxt = outTxt.substring(1,outTxt.length-1);
@@ -208,8 +204,6 @@ db.once('value', function(snapshot) {
   var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
   login(config, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
-    data.globalScope = data.globalScope || {};
-
-    startBot(api, data.globalScope, data.allScopes || {});
+    startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allMacros || {});
   });
 });
