@@ -1,1 +1,1 @@
-(define-with-default scores (ref (hashmap)))
+(define-once scores (ref (hashmap)))

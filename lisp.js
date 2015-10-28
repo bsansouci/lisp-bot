@@ -273,7 +273,11 @@ var uuidToNodeMap = {};
 
 var macroTable = {
   "docs": function(args, charPos) {
-    if(args.length !== 1) throw new Error("Wrong number of arguments. Please give only one argument");
+    checkNumArgs(charPos, args, 1);
+    if (args[0].type !== "identifier"){
+      throwError("Only identifiers can have docs.");
+    }
+
     if (symbolTable[args[0].value] && symbolTable[args[0].value].docs)
       return new Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
     else if (symbolTable[args[0].value]){
@@ -334,7 +338,22 @@ var macroTable = {
     uuidToNodeMap[res.uuid] = res;
     localStack[localStack.length - 1][name.value] = res.uuid;
 
-    return res;
+    return makeArr(charPos);
+  },
+  "define-once": function(args, charPos) {
+    if (args.length !== 2 && args.length !== 3){
+      throwError("Improper number of arguments to define-once. Expected: 2 or 3, got: "+args.length,charPos);
+    }
+
+    var name = args[0];
+    if(name.type !== "identifier") {
+      return throwError("First argument to define-once isn't an identifier", name);
+    }
+
+    if (!getLocal(localStack, name.value)){
+      macroTable.define(args, charPos);
+    }
+    return makeArr(charPos);
   },
   "lambda": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
@@ -348,12 +367,14 @@ var macroTable = {
 
     var body = args[1];
 
-    return new Node(body, "function", argNames.charPos,
+    var lambdaNode = new Node(body, "function", argNames.charPos,
       {
         scope: Object.assign({}, localStack[localStack.length - 1]),
         macroScope: Object.assign({}, macroStack[macroStack.length - 1]),
         argNames: argNames
       });
+    lambdaNode.scope["recur"] = lambdaNode.uuid;
+    return lambdaNode;
   },
   "quote": function(args, charPos) {
     return args[0];
@@ -625,19 +646,6 @@ var symbolTable = {
       throwError("Couldn't find ref.", args[0]);
     }
     return uuidToNodeMap[args[0].value];
-  },
-  "recur": function(args, charPos) {
-    if(recurFunctionStack.length === 0) {
-      throwError("Cannot call recur outside of a lambda", charPos);
-    }
-    var func = recurFunctionStack[recurFunctionStack.length - 1];
-    var argNames = func.argNames.value || [];
-    var variadicArgs = argNames.length > 1 && argNames[argNames.length - 1].value === "...";
-    if(!variadicArgs && args.length !== argNames.length) {
-      throwError("Wrong number of arguments passed to recur.", charPos);
-    }
-
-    return evalLambda(func, args, charPos);
   },
 };
 
