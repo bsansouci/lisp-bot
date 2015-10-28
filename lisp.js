@@ -94,17 +94,18 @@ function evaluate(ast) {
   var maybeLocalMacro = getLocal(macroStack, firstElem.value);
 
   if(maybeLocalMacro) {
-    return evaluate(evalLambda(maybeLocalMacro, ast.value.slice(1), firstElem.charPos));
+    return evaluate(evalLambda(maybeLocalMacro, ast.value.slice(1), firstElem.charPos, firstElem.value));
   }
 
   var evaledAST = ast.value.map(evaluate);
+
   var func = evaledAST[0];
   if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function.", firstElem);
 
-  return evalLambda(func, evaledAST.slice(1), firstElem.charPos);
+  return evalLambda(func, evaledAST.slice(1), firstElem.charPos, firstElem.value);
 }
 
-function evalLambda(func, args, charPos) {
+function evalLambda(func, args, charPos, funcName) {
   if(localStack.length > 512) {
     throwError("Stack overflow > 512");
   }
@@ -120,7 +121,7 @@ function evalLambda(func, args, charPos) {
     } catch(e) {
       localStack.pop();
       macroStack.pop();
-      throw e;
+      throw stackTrace(e, funcName);
     }
   }
   var argNames = func.argNames.value || [];
@@ -161,8 +162,12 @@ function evalLambda(func, args, charPos) {
     var savedStack = localStack.pop();
     var savedMacro = macroStack.pop();
     // TODO: Do something with the stacktrace plz
-    throw e;
+    throw stackTrace(e, funcName);
   }
+}
+
+function stackTrace(error, funcName){
+  return new Error(error.message.slice(0,-1)+"\nin function: "+(funcName || "[function]")+"\n")
 }
 
 function getLocal(stack, name) {
@@ -257,7 +262,8 @@ function throwError(str, node) {
   if (charPos == -1 || !charPos){
     throw new Error(str);
   } else {
-    throw new Error("At char " + charPos + ": " + str + "\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
+    throw new Error("At char " + charPos + ": " + str);
+    // ""\nIn region: `"+src.substring(Math.max(0, charPos - 60), charPos) + ">>" + src.substring(charPos, Math.min(src.length, charPos + 25)) + "`");
   }
 }
 
