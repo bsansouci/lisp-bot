@@ -1,1 +1,2 @@
 (define-once scores (ref (hashmap)))
+(define-once lists (ref (hashmap)))
