@@ -166,7 +166,7 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
             isMacro: true,
           };
 
-          currentStackFrame[identifier] = uuid;
+          currentMacros[identifier] = uuid;
         });
 
         Object.keys(output.newUuidToNodeMap).forEach(function(uuid) {
@@ -174,7 +174,7 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 
           globalScope[uuid] = {
             node: node,
-            isMacro: false,
+            isMacro: !!node.isMacro,
           };
         });
 
