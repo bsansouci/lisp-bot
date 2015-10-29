@@ -9,7 +9,7 @@
     (list
       name
       (join
-        (map2 (lambda (n item) (join (list n item) " - ")) (range (len lst)) lst)
+        (map (lambda (n item) (join (list n item) " - ")) (range (len lst)) lst)
         "\n"
       )
     )
