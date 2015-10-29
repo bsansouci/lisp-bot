@@ -110,15 +110,18 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
     currentUserId = userId;
     currentUsername = username;
     currentOtherUsernames = otherUsernames;
+
+    var newThread = !(allStackFrames[currentThreadId] || allMacros[currentThreadId]);
+
     allStackFrames[currentThreadId] = allStackFrames[currentThreadId] || {};
     currentStackFrame = allStackFrames[currentThreadId];
     allMacros[currentThreadId] = allMacros[currentThreadId] || {};
     currentMacros = allMacros[currentThreadId];
 
-    parseLisp(message, callback);
+    parseLisp(message, callback, newThread);
   }
 
-  function parseLisp(msg, sendReply) {
+  function parseLisp(msg, sendReply, newThread) {
 
     var inTxt = "";
 
@@ -139,8 +142,13 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
           availableNodes[uuid] = globalScope[uuid].node;
         });
 
-        var defaultVars = lisp.evaluateWith(lisp.parse("(load bot-default-variables)"), currentStackFrame, currentMacros, availableNodes);
-        var output = lisp.evaluateWith(AST, defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
+        var output;
+        if (newThread) {
+          var defaultVars = lisp.evaluateWith(lisp.parse("(load thread-lib)"), currentStackFrame, currentMacros, availableNodes);
+          output = lisp.evaluateWith(AST, defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
+        } else {
+          output = lisp.evaluateWith(AST, currentStackFrame, currentMacros, availableNodes);
+        }
 
         Object.keys(output.newStackFrame).forEach(function(identifier) {
           var uuid = output.newStackFrame[identifier];
