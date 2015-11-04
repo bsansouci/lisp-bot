@@ -370,10 +370,25 @@ var macroTable = {
 
     var body = args[1];
 
+    var allIdentifiers = findAllIdentifiers(body);
+    var topStack = localStack[localStack.length - 1];
+    var topMacros = macroStack[macroStack.length - 1];
+    var newScope = {};
+    var newMacroScope = {};
+    allIdentifiers.forEach(function(v) {
+      if (topStack[v]) {
+        newScope[v] = topStack[v];
+      }
+
+      if (topMacros[v]) {
+        newMacroScope[v] = topMacros[v];
+      }
+    })
+
     var lambdaNode = new Node(body, "function", argNames.charPos,
       {
-        scope: Object.assign({}, localStack[localStack.length - 1]),
-        macroScope: Object.assign({}, macroStack[macroStack.length - 1]),
+        scope: newScope,
+        macroScope: newMacroScope,
         argNames: argNames
       });
     lambdaNode.scope.recur = lambdaNode.uuid;
@@ -780,6 +795,22 @@ var uuid = (function() {
       s4() + '-' + s4() + s4() + s4();
   }
 })();
+
+function findAllIdentifiers(ast) {
+  var dedupeObj = {};
+  if (isList(ast)) {
+    return ast.value.reduce(function(acc, v) {
+      findAllIdentifiers(v).forEach(function(v) {dedupeObj[v] = v;});
+      return acc.concat(Object.keys(dedupeObj));
+    }, []);
+  }
+
+  if(ast.type === 'identifier') {
+    return [ast.value];
+  }
+
+  return [];
+}
 
 module.exports = {
   parse: parse,
