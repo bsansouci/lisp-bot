@@ -11,26 +11,26 @@ var allMacrosDB = db.child("allMacros");
 
 function startGC(globalScope, allStackFrames, allMacros) {
   var usedUuids = {}
-  allStackFrames.forEach(markThreadScope);
-  allMacros.forEach(markThreadScope);
+  Object.keys(allStackFrames).forEach(threadID => markThreadScope(allStackFrames[threadID]));
+  Object.keys(allMacros).forEach(threadID => markThreadScope(allMacros[threadID]));
   globalScopeDB.set(sweep(globalScope));
 
   // Internal Functions
   function markThreadScope(threadScope){
-    Object.keys(threadScope).forEach((k) => markNode(threadScope[k]);
+    Object.keys(threadScope).forEach(k => markNode(threadScope[k]));
   }
 
   function markNode(uuid){
     if (!isMarked(uuid)){
       mark(uuid)
       var node = globalScope[uuid].node;
-      switch (astNode.type){
+      switch (node.type){
         case 'ref':
           markNode(node.value)
           break;
         case 'function':
-          markThreadScope(node.scope);
-          markThreadScope(node.macroScope);
+          markThreadScope(node.scope || {});
+          markThreadScope(node.macroScope || {});
           break;
       }
     }
@@ -38,9 +38,10 @@ function startGC(globalScope, allStackFrames, allMacros) {
 
   function sweep(globalScope){
     return Object.keys(globalScope).reduce((acc, k) => {
-      if (usedUuids.hasOwnProperty(k)){
+      if (isMarked(k)){
         acc[k] = globalScope[k];
       }
+      return acc;
     }, {});
   }
 
@@ -49,7 +50,7 @@ function startGC(globalScope, allStackFrames, allMacros) {
   }
 
   function isMarked(uuid){
-    usedUuids.hasOwnProperty(uuid);
+    return usedUuids.hasOwnProperty(uuid);
   }
 }
 
