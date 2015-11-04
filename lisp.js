@@ -3,7 +3,6 @@
 var fs = require("fs");
 
 var sourceString = "";
-var recurFunctionStack = [];
 
 function parse(str) {
   sourceString = str;
@@ -152,9 +151,7 @@ function evalLambda(func, args, charPos, funcName) {
   localStack.push(Object.assign({}, func.scope, map));
   macroStack.push(Object.assign({}, func.macroScope));
   try {
-    recurFunctionStack.push(func);
     var result = evaluate(func.value);
-    recurFunctionStack.pop();
     localStack.pop();
     macroStack.pop();
     return result;
@@ -379,7 +376,7 @@ var macroTable = {
         macroScope: Object.assign({}, macroStack[macroStack.length - 1]),
         argNames: argNames
       });
-    lambdaNode.scope["recur"] = lambdaNode.uuid;
+    lambdaNode.scope.recur = lambdaNode.uuid;
     return lambdaNode;
   },
   "quote": function(args, charPos) {
