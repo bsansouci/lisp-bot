@@ -51,7 +51,7 @@
     (list
       name
       (join
-        (map2 (lambda (n item) (join (list n item) " - ")) (range (len lst)) lst)
+        (map (lambda (n item) (join (list n item) " - ")) (range (len lst)) lst)
         "\n"
       )
     )
@@ -73,19 +73,16 @@
 (define list-add (lambda (args ...)
   (cond
     ((and (equal? (len args) 1) (type? (car args) "string"))
-      (report (set! lists (assoc (get lists) (car args) '())) "List added."))
+      (report (update! lists (lambda (lists-val) (assoc lists-val (car args) '()))) "List added."))
     ((and (equal? (len args) 2) (type? (car args) "string") (type? (second args) "string"))
       (report
-        (set!
-          lists
-          (assoc
-            (get lists)
-            (car args)
-            (cons
-              (second args)
-              (if (nil? ((get lists) (car args))) '() ((get lists) (car args))))
-          )
-        )
+        (update! lists
+          (lambda (lists-val)
+            (assoc lists-val
+              (car args)
+              (cons (second args)
+                (if (nil? ((get lists) (car args))) '()
+                    ((get lists) (car args)))))))
         "List item added."
       )
     )
@@ -93,28 +90,20 @@
   )
 ))
 
-
-(; define remove (lambda (args ...)
-   (cond
-    ((nil? args) "Remove requires arguments")
+(define list-remove (lambda (args ...)
+  (cond
     ((and (equal? (len args) 1) (type? (car args) "string"))
-      (report (set! lists (assoc (get lists) (car args) '())) "List removed."))
-    ((and (equal? (len args) 2) (type? (second args) "number"))
+      (report (update! lists (lambda (lists-val) (dissoc lists-val (car args)))) "List added."))
+    ((and (equal? (len args) 2) (type? (car args) "string") (type? (second args) "number"))
       (report
-        (set!
-          lists
-          (assoc
-            (get lists)
-            (car args)
-            (remove-nth
-              (if (nil? ((get lists) (car args))) '() ((get lists) (car args)))
-              (second args)
-            )
-          )
-        )
-        "List item removed."
+        (update! lists
+          (lambda (lists-val)
+            (assoc lists-val
+              (car args)
+              (remove-nth (lists-val (car args)) (second args)))))
+        "List item remove."
       )
     )
-    (true)
+    (true "list-add should be called with the name of a new list or with the name of a list and the content of an item.")
   )
 ))

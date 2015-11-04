@@ -44,18 +44,32 @@
   )
 ))
 
-(define map (lambda (fn arrs ...)
-  (cond
-    ((nil? arrs) "Call map with at least one array.")
-    ((has-nil? arrs) nil)
-    (true (concat (list (apply fn (car' arrs))) (apply map (cons fn (cdr' arrs)))))
-  )
-))
+(define-macro and
+  "Evaluates arguments from left to right until it hits one that evaluates to false. If all of expressions evaluate to true, it will return true. Otherwise it will return false."
+  (lambda (x args ...)
+    (if (nil? args)
+      x
+      `(if ~x (and ~@args) false))))
+
+(define-macro or
+  "Evaluates arguments from left to right until it hits one that evaluates to true. If one of the expressions evaluate to true, it will return true. Otherwise it will return false."
+  (lambda (x args ...)
+    (if (nil? args)
+      x
+      `(if ~x true (or ~@args)))))
 
 (define has-nil? (lambda (arr)
   (if (nil? arr)
     false
     (or (nil? (car arr)) (has-nil? (cdr arr)))
+  )
+))
+
+(define map (lambda (fn arrs ...)
+  (cond
+    ((nil? arrs) "Call map with at least one array.")
+    ((has-nil? arrs) nil)
+    (true (concat (list (apply fn (car' arrs))) (apply map (cons fn (cdr' arrs)))))
   )
 ))
 
@@ -101,20 +115,6 @@
 (define second
   (lambda (x)
     (car (cdr x))))
-
-(define-macro and
-  "Evaluates arguments from left to right until it hits one that evaluates to false. If all of expressions evaluate to true, it will return true. Otherwise it will return false."
-  (lambda (x args ...)
-    (if (nil? args)
-      x
-      `(if ~x (and ~@args) false))))
-
-(define-macro or
-  "Evaluates arguments from left to right until it hits one that evaluates to true. If one of the expressions evaluate to true, it will return true. Otherwise it will return false."
-  (lambda (x args ...)
-    (if (nil? args)
-      x
-      `(if ~x true (or ~@args)))))
 
 (define contain? (lambda (fn key arr)
    (foldr (lambda (acc v) (or acc (equal? key (fn v)))) false arr)))
@@ -216,3 +216,18 @@
                                                  (if (equal? (car v) (car args))
                                                    (car (cdr v))
                                                    acc)) '() m)))))))))
+
+(define dissoc
+  (lambda (hmap keys ...)
+          (let (m (filter (lambda (v) (not (contain? identity (car v) keys))) (hmap)))
+            (lambda (args ...)
+                  (let (l (len args))
+                    (cond ((equal? 0 l) m)
+                          ((equal? 1 l) (foldr (lambda (acc v)
+                                                 (if (equal? (car v) (car args))
+                                                   (car (cdr v))
+                                                   acc)) '() m))))))))
+
+(define update!
+  (lambda (some-ref fn)
+          (set! some-ref (fn (get some-ref)))))

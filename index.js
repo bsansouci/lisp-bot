@@ -56,6 +56,7 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
   lisp.addFunction("clear-namespace", function(utils) {
     return function(args, charPos) {
       delete allStackFrames[currentThreadId];
+      delete allMacros[currentThreadId];
       return utils.toLispData("Namespace cleared");
     };
   }, "Will delete all user-defined values.");
