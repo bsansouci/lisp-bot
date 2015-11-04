@@ -144,7 +144,8 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 
         var output;
         if (newThread) {
-          var defaultVars = lisp.evaluateWith(lisp.parse("(load thread-lib)"), currentStackFrame, currentMacros, availableNodes);
+          var defaultVars = lisp.evaluateWith(lisp.parse("(load std-lib)"), currentStackFrame, currentMacros, availableNodes);
+          defaultVars = lisp.evaluateWith(lisp.parse("(load bot-lib)"), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
           output = lisp.evaluateWith(AST, defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
         } else {
           output = lisp.evaluateWith(AST, currentStackFrame, currentMacros, availableNodes);
