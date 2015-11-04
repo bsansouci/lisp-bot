@@ -167,7 +167,7 @@ function stackTrace(error, funcName){
   if (typeof funcName === "object") {
     funcName = "[Anonymous lambda]";
   }
-  return new Error(error.message.slice(0,-1)+"\nin function: "+(funcName || "[function]")+"\n")
+  return new Error(error.message+"\nin function: "+(funcName || "[function]"))
 }
 
 function getLocal(stack, name) {
