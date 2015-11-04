@@ -77,10 +77,6 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
     };
   }, "Will define only if that identifier isn't already defined in the scope (aka loaded from the DB).");
 
-  // Load std-lib and bot-lib
-  lisp.evaluate(lisp.parse("(load std-lib)"));
-  lisp.evaluate(lisp.parse("(load bot-lib)"));
-
   // Main method
   var stopListening = api.listen(function(err, event) {
     if(err) return console.error(err);
