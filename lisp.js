@@ -341,7 +341,7 @@ var macroTable = {
     uuidToNodeMap[res.uuid] = res;
     localStack[localStack.length - 1][name.value] = res.uuid;
 
-    return makeArr(charPos);
+    return res;
   },
   "define-once": function(args, charPos) {
     if (args.length !== 2 && args.length !== 3){
@@ -354,9 +354,10 @@ var macroTable = {
     }
 
     if (!getLocal(localStack, name.value)){
-      macroTable.define(args, charPos);
+      return macroTable.define(args, charPos);
     }
-    return makeArr(charPos);
+
+    return getLocal(localStack, name.value);
   },
   "lambda": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
