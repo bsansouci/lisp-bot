@@ -164,6 +164,9 @@ function evalLambda(func, args, charPos, funcName) {
 }
 
 function stackTrace(error, funcName){
+  if (typeof funcName === "object") {
+    funcName = "[Anonymous lambda]";
+  }
   return new Error(error.message.slice(0,-1)+"\nin function: "+(funcName || "[function]")+"\n")
 }
 
@@ -393,6 +396,7 @@ var macroTable = {
         argNames: argNames
       });
     lambdaNode.scope.recur = lambdaNode.uuid;
+    uuidToNodeMap[lambdaNode.uuid] = lambdaNode;
     return lambdaNode;
   },
   "quote": function(args, charPos) {
