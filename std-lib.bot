@@ -73,14 +73,6 @@
   )
 ))
 
-(define reduce (lambda (fn base arrs ...)
-  (cond
-    ((nil? arrs) "Call reduce with at least one array.")
-    ((has-nil? arrs) base)
-    (true (apply fn (cons (apply foldr' (cons fn (cons base (cdr' arrs)))) (car' arrs))))
-  )
-))
-
 (define foldr (lambda (fn base lst)
   (if (nil? lst)
     base
@@ -92,6 +84,14 @@
     (foldl fn
       (fn base (car lst))
       (cdr lst)))))
+
+(define reduce (lambda (fn base arrs ...)
+  (cond
+    ((nil? arrs) "Call reduce with at least one array.")
+    ((has-nil? arrs) base)
+    (true (apply fn (cons (apply reduce (cons fn (cons base (cdr' arrs)))) (car' arrs))))
+  )
+))
 
 (define reverse (lambda (l) (foldr (lambda (a v) (concat a (list v))) '() l)))
 
