@@ -227,32 +227,29 @@ function merge(obj1, obj2) {
 
 // Todo: I'm pretty sure there's something wrong there
 function prettyPrint(node, optionalRefMapping) {
-  if (typeof node === "undefined") return "undefined";
+  if (typeof node === "undefined") return "!!undefined!!";
   if(!optionalRefMapping) optionalRefMapping = uuidToNodeMap;
 
-  if(!isList(node)) {
-    switch(node.type) {
-      case "identifier":
-      case "boolean":
-      case "number":
-        return node.value.toString();
-      case "function":
-        if(typeof node.value === 'function') return "[Native Function]";
-        return "[Function: " + prettyPrint(node.argNames) + " -> " + prettyPrint(node.value) + "]";
-      case "ref":
-        return "[Ref: " + prettyPrint(optionalRefMapping[node.value]) + "]";
-      case "string":
-        return "\"" + node.value + "\"";
-      default:
-        throw new Error("Cannot prettyPrint node: `"+ JSON.stringify(node) + "`, type:" + typeof node);
-    }
+  switch(node.type) {
+    case "identifier":
+    case "boolean":
+    case "number":
+      return node.value.toString();
+    case "function":
+      if(typeof node.value === 'function') return "[Native Function]";
+      return "[Function: " + prettyPrint(node.argNames, optionalRefMapping) + " -> " + prettyPrint(node.value, optionalRefMapping) + "]";
+    case "ref":
+      return "[Ref: " + prettyPrint(optionalRefMapping[node.value], optionalRefMapping) + "]";
+    case "string":
+      return "\"" + node.value + "\"";
+    case "list":
+      if(node.value.length === 0) return "nil";
+      return node.value.reduce(function(acc, v, i) {
+        return acc + prettyPrint(v, optionalRefMapping) + (i < node.value.length - 1 ? " " : "");
+      }, "(") + ")";
+    default:
+      throw new Error("Cannot prettyPrint node: `"+ JSON.stringify(node) + "`, type:" + node.type);
   }
-
-  if(node.value.length === 0) return "nil";
-
-  return node.value.reduce(function(acc, v, i) {
-    return acc + prettyPrint(v) + (i < node.value.length - 1 ? " " : "");
-  }, "(") + ")";
 }
 
 function throwError(str, node) {
@@ -654,6 +651,10 @@ var symbolTable = {
   "typeof": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
     return new Node(args[0].type, "string", charPos);
+  },
+  "string": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    return new Node(prettyPrint(args[0]), "string", charPos);
   },
   "ref": function(args, charPos){
     checkNumArgs(charPos, args, 1);
