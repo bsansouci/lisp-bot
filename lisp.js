@@ -167,7 +167,13 @@ function stackTrace(error, funcName){
   if (typeof funcName === "object") {
     funcName = "[Anonymous lambda]";
   }
-  return new Error(error.message+"\nin function: "+(funcName || "[function]"))
+  var errorLen = error.message.split("\n").length;
+  if (errorLen < 15)
+    return new Error(error.message+"\nin function: "+(funcName || "[Native function]"));
+  else if (errorLen == 15)
+    return new Error(error.message+"\n...");
+  else
+    return error;
 }
 
 function getLocal(stack, name) {
@@ -561,14 +567,14 @@ var symbolTable = {
     checkNumArgs(charPos, args, 1);
 
     var rest = args[0];
-    if(!isList(rest)) throwError("cdr expects a list as unique argument.", rest);
+    if(!isList(rest)) throwError("cdr expects a list as unique argument. Got "+rest.type+" instead.", rest);
     return makeArr.apply(null, [charPos].concat(rest.value.slice(1)));
   },
   "car": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
 
     var rest = args[0];
-    if(!isList(rest)) throwError("car expects a list as unique argument.", rest);
+    if(!isList(rest)) throwError("car expects a list as unique argument. Got "+rest.type+" instead.", rest);
     if(rest.value.length < 1) throwError("Car not defined on empty lists", rest);
     return rest.value[0];
   },
