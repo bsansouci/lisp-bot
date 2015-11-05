@@ -11,20 +11,31 @@
         ) nil)
      ))
   (do
+    (test "docs" docs '((docs) "Built-in macro."))
+    (test "if" if '((true 1 2) 1 ((< 1 -1) 1 2) 2))
+    (test "+" + '((1 2 3 4) 10))
+    (test "-" - '((10 5) 5))
+    (test "nil?" nil? '((()) true ((3)) false))
     (test "car" car '(((1)) 1))
+    (test "cdr" cdr '(((1 2)) (2)))
+    (test "cons" cons '((1 (2 3)) (1 2 3)))
     (test "list" list '((1 2) (1 2)))
     (test "identity" identity '((1) 1 (nil) nil))
-    (test "Should Fail" identity '((1) 2 (2) 1))
+    (test "string" string (list (list (identity string)) "[Native Function]"))
+    (; test "Should Fail" identity '((1) 2 (2) 1))
   )
 )))
 
 (test-run)
 
-(define test-print (lambda ()
-  (join (map (lambda (test)
-    (join (list (car test) ": "
-      (if (nil? (second test)) "Passed" (join (cons "Failed"
-        (map (lambda (v) (join (list "\n  In:" (string (car v)) " Expected:" (string (second v)) " Received:" (string (nth v 2))) "")) (second test))) ""))
-    ) "")
-  ) ((get test-results))) "\n")
+(define test-print (lambda (verbose)
+  (if (and (not verbose) (nil? (filter (lambda (v) (not (nil? (second v)))) ((get test-results)))))
+  "All tests passed."
+    (join (cdr (split (join (map (lambda (test)
+      (if (or verbose (not (nil? (second test)))) (join (list "\n" (car test) ": "
+        (if (nil? (second test)) "Passed" (join (cons "Failed"
+          (map (lambda (v) (join (list "\n  In:" (string (car v)) " Expected:" (string (second v)) " Received:" (string (nth v 2))) "")) (second test))) ""))
+      ) "") "")
+    ) ((get test-results))) "") "\n")) "\n")
+  )
 ))

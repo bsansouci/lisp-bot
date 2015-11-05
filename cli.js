@@ -6,6 +6,8 @@ lisp.evaluate(lisp.parse("(load std-lib)"));
 lisp.evaluate(lisp.parse("(load polyfill)"));
 lisp.evaluate(lisp.parse("(load bot-lib)"));
 lisp.evaluate(lisp.parse("(load tests)"));
+console.log(lisp.evaluate(lisp.parse("(test-print false)")).value);
+console.log("--------------");
 
 stdin.addListener("data", function(d) {
   var str = d.toString().substring(0, d.length-1).trim();
