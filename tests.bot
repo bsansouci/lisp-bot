@@ -14,15 +14,17 @@
     (test "car" car '(((1)) 1))
     (test "list" list '((1 2) (1 2)))
     (test "identity" identity '((1) 1 (nil) nil))
-    (test "Should Fail" identity '((1) 2))
+    (test "Should Fail" identity '((1) 2 (2) 1))
   )
 )))
 
+(test-run)
+
 (define test-print (lambda ()
-  (map (lambda (test)
+  (join (map (lambda (test)
     (join (list (car test) ": "
       (if (nil? (second test)) "Passed" (join (cons "Failed"
-        (map (lambda (v) (join (list "\n  In:" (join (car v) ", ") " Expected: " (second v) " Received: " (nth v 3)) "")) (second test))) ""))
+        (map (lambda (v) (join (list "\n  In:" (string (car v)) " Expected:" (string (second v)) " Received:" (string (nth v 2))) "")) (second test))) ""))
     ) "")
-  ) (get test-results))
+  ) ((get test-results))) "\n")
 ))
