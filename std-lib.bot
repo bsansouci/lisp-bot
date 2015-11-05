@@ -183,13 +183,13 @@
       (cons (car list) (remove-nth (cdr list) (- n 1)))
 )))
 
-(define get-last (lambda (lst) (
+(define get-last (lambda (lst)
   (cond
     ((nil? lst) lst)
     ((nil? (cdr lst)) (car lst))
     (true (get-last (cdr lst)))
   )
-)))
+))
 
 (define do
   (lambda (args ...) (get-last args)))

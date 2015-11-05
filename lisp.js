@@ -99,7 +99,7 @@ function evaluate(ast) {
   var evaledAST = ast.value.map(evaluate);
 
   var func = evaledAST[0];
-  if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function.", firstElem);
+  if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function (received "+func.type+").", firstElem);
 
   return evalLambda(func, evaledAST.slice(1), firstElem.charPos, firstElem.value);
 }
@@ -469,7 +469,12 @@ var macroTable = {
   },
   "load": function(args, charPos) {
     var name = args[0].value;
-    var data = fs.readFileSync(name + ".bot", 'utf8').toString();
+    var data;
+    try {
+      data = fs.readFileSync(name + ".bot", 'utf8').toString();
+    } catch (e) {
+      throwError("File '"+name+"' could not be loaded.");
+    }
     console.log("Loading", name);
     var arr = data.split('\n');
     var rest = "";
