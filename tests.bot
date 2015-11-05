@@ -1,0 +1,28 @@
+(define test-results (ref (hashmap)))
+
+(define test-run (lambda () (let (
+      test (lambda (name fn io-lst)
+        (do (update! test-results (lambda (v) (assoc v name (reduce
+          (lambda (acc in out)
+            (if (equal? (apply fn in) out)
+              acc
+              (cons (list in out (apply fn in)) acc)
+          ))   nil (every-other-even io-lst) (every-other-odd io-lst))))
+        ) nil)
+     ))
+  (do
+    (test "car" car '(((1)) 1))
+    (test "list" list '((1 2) (1 2)))
+    (test "identity" identity '((1) 1 (nil) nil))
+    (test "Should Fail" identity '((1) 2))
+  )
+)))
+
+(define test-print (lambda ()
+  (map (lambda (test)
+    (join (list (car test) ": "
+      (if (nil? (second test)) "Passed" (join (cons "Failed"
+        (map (lambda (v) (join (list "\n  In:" (join (car v) ", ") " Expected: " (second v) " Received: " (nth v 3)) "")) (second test))) ""))
+    ) "")
+  ) (get test-results))
+))
