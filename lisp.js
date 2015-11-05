@@ -79,6 +79,7 @@ function evaluate(ast) {
 
     if(maybeLocal != null) return maybeLocal;
     if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
+    if(macroTable.hasOwnProperty(ast.value)) return new Node(macroTable[ast.value], "function", ast.charPos);
 
     throwError("Undeclared identifier `" + ast.value + "`", ast);
   }
@@ -287,11 +288,14 @@ var macroTable = {
       throwError("Only identifiers can have docs.");
     }
 
-    if (symbolTable[args[0].value] && symbolTable[args[0].value].docs)
+    if (symbolTable[args[0].value] && symbolTable[args[0].value].docs){
       return new Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
-    else if (symbolTable[args[0].value]){
+    } else if (symbolTable[args[0].value]){
       return new Node("Built-in function.", "string", args[0].charPos);
+    } else if (macroTable[args[0].value]){
+      return new Node("Built-in macro.", "string", args[0].charPos);
     }
+
     var maybeMacro = getLocal(macroStack, args[0].value);
     if(maybeMacro) return new Node(maybeMacro.docs, "string", args[0].charPos);
 
@@ -499,14 +503,14 @@ var macroTable = {
       s = s.replace(/\n|\s+/g, " ");
       if(s.length === 0) continue;
 
-      // try {
+      //try {
       evaluate(parse(s));
-      // } catch (e) {
-      //   // console.error(e);
-      //   throwError(e.toString(), charPos);
-      // }
+      //} catch (e) {
+        // console.error(e);
+      //  throwError(e.toString(), charPos);
+      //}
     }
-    console.log("--------------------");
+    //console.log("--------------------");
     return makeArr(charPos);
   },
   "apply-macro": function(args, charPos) {

@@ -1,25 +1,30 @@
-(define-macro ; (lambda (x ...) ())
+(define-macro ; "Always returns nil." (lambda (x ...) ())
   )
 
-(define nil '())
+(define nil "Equivalent to an empty list." '())
 
 (define nil?
   "Returns true if argument is nil."
   (lambda (x) (equal? () x)))
 
-(define identity (lambda (x) x))
+(define identity "Returns what is passed in." (lambda (x) x))
 
 (; define-macro apply
    "Takes a fn and an arr and applies the elements of the array to the function as arguments."
    (lambda (fn arr) `(~fn ~@arr))
 )
 
-(define list (lambda (args ...) args))
+(define list "Takes variadic arguments that are returned wrapped in a list."
+  (lambda (args ...) args))
 
-(define type? (lambda (var type) (equal? (typeof var) type)))
+(define type? "Checks if the type of the first argument is equal to the string passed as a second arg."
+  (lambda (var type) (equal? (typeof var) type)))
 
 (define-macro cond
-  "Todo"
+  "Takes a set of test/expr pairs. It evaluates each test one at a
+time.  If a test returns logical true, cond evaluates and returns
+the value of the corresponding expr and doesn't evaluate any of the
+other tests or exprs."
   (lambda (x rest ...)
   `(if ~(car x)
        ~(car (cdr x))
@@ -27,7 +32,9 @@
           ()
           (cond ~@rest)))))
 
-(define car' (lambda (arrs)
+(define car'
+"Takes a list of lists, and maps car onto it."
+  (lambda (arrs)
   (if (nil? arrs)
     nil
     (cons
@@ -37,7 +44,9 @@
   )
 ))
 
-(define cdr' (lambda (arrs)
+(define cdr'
+"Takes a list of lists, and maps cdr onto it."
+(lambda (arrs)
   (if (nil? arrs)
     nil
     (cons (cdr (car arrs)) (cdr' (cdr arrs)))
@@ -58,14 +67,18 @@
       x
       `(if ~x true (or ~@args)))))
 
-(define has-nil? (lambda (arr)
+(define has-nil?
+"Returns true if the passed-in list contains nil."
+  (lambda (arr)
   (if (nil? arr)
     false
     (or (nil? (car arr)) (has-nil? (cdr arr)))
   )
 ))
 
-(define map (lambda (fn arrs ...)
+(define map
+  "Should be called with at least one array."
+  (lambda (fn arrs ...)
   (cond
     ((nil? arrs) "Call map with at least one array.")
     ((has-nil? arrs) nil)
@@ -93,7 +106,7 @@
   )
 ))
 
-(define reverse (lambda (l) (foldr (lambda (a v) (concat a (list v))) '() l)))
+(define reverse "Reverses the passed-in list." (lambda (l) (foldr (lambda (a v) (concat a (list v))) '() l)))
 
 (define filter (lambda (pred arr)
   (foldr (lambda (acc v)
@@ -105,14 +118,17 @@
 )
 
 (define zero?
+  "Returns true if the argument is equal to 0."
   (lambda (expr)
     (equal? 0 expr)))
 
 (define not
+  "Returns the negated argument. Equivalent to (if expr false true)"
   (lambda (expr)
     (if expr false true)))
 
 (define second
+  "Returns the second element of the passed-in list. Equivalent to (car (cdr lst))"
   (lambda (x)
     (car (cdr x))))
 
@@ -204,10 +220,13 @@
   )
 ))
 
-(define hashmap (lambda (init ...)
+(define hashmap
+"Creates a hashmap.  Can be followed by alternating keys and values to initialize it."
+  (lambda (init ...)
   (foldr (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
 
 (define assoc
+    "Takes a hashmap, a key and a value, and returns a hashmap with the (key value) pair added to it  ."
     (let (hm-dedupe (lambda (map)
       (foldl (lambda (acc k)
         (if (contain? (lambda (e) (car e)) (car k) acc)
@@ -229,6 +248,7 @@
                                                    acc)) '() m)))))))))
 
 (define dissoc
+  "Takes a hashmap and an arbitrary number of keys, and returns a hashmap with the keys removed."
   (lambda (hmap keys ...)
           (let (m (filter (lambda (v) (not (contain? identity (car v) keys))) (hmap)))
             (lambda (args ...)
