@@ -76,8 +76,11 @@ function evaluate(ast) {
       return ast;
     }
     var maybeLocal = getLocal(localStack, ast.value);
-
     if(maybeLocal != null) return maybeLocal;
+
+    var maybeMacro = getLocal(macroStack, ast.value);
+    if(maybeMacro != null) return maybeMacro;
+
     if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
     if(macroTable.hasOwnProperty(ast.value)) return new Node(macroTable[ast.value], "function", ast.charPos);
 
@@ -227,9 +230,10 @@ function merge(obj1, obj2) {
 }
 
 // Todo: I'm pretty sure there's something wrong there
-function prettyPrint(node, optionalRefMapping) {
+function prettyPrint(node, optionalRefMapping, cycles) {
   if (typeof node === "undefined") return "!!undefined!!";
   if(!optionalRefMapping) optionalRefMapping = uuidToNodeMap;
+  cycles = cycles || {};
 
   switch(node.type) {
     case "identifier":
@@ -238,15 +242,21 @@ function prettyPrint(node, optionalRefMapping) {
       return node.value.toString();
     case "function":
       if(typeof node.value === 'function') return "[Native Function]";
-      return "[Function: " + prettyPrint(node.argNames, optionalRefMapping) + " -> " + prettyPrint(node.value, optionalRefMapping) + "]";
+      return "[Function: " + prettyPrint(node.argNames, optionalRefMapping, cycles) + " -> " + prettyPrint(node.value, optionalRefMapping, cycles) + "]";
     case "ref":
-      return "[Ref: " + prettyPrint(optionalRefMapping[node.value], optionalRefMapping) + "]";
+      if (cycles[node.uuid])
+        return "[Circular Ref]"
+      else {
+        cycles = Object.assign({}, cycles);
+        cycles[node.uuid] = true;
+        return "[Ref: " + prettyPrint(optionalRefMapping[node.value], optionalRefMapping, cycles) + "]";
+      }
     case "string":
       return "\"" + node.value + "\"";
     case "list":
       if(node.value.length === 0) return "nil";
       return node.value.reduce(function(acc, v, i) {
-        return acc + prettyPrint(v, optionalRefMapping) + (i < node.value.length - 1 ? " " : "");
+        return acc + prettyPrint(v, optionalRefMapping, cycles) + (i < node.value.length - 1 ? " " : "");
       }, "(") + ")";
     default:
       throw new Error("Cannot prettyPrint node: `"+ JSON.stringify(node) + "`, type:" + node.type);
