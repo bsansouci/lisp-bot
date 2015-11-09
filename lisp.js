@@ -71,6 +71,9 @@ function parseHelper(str, charPos) {
 }
 
 function evaluate(ast) {
+  // TODO: plz... don't... arg...
+  if(isList(ast) && ast.value == null) ast.value = [];
+
   if(!isList(ast)) {
     if(ast.type !== "identifier") {
       return ast;
@@ -830,6 +833,7 @@ var uuid = (function() {
 function findAllIdentifiers(ast) {
   var dedupeObj = {};
   if (isList(ast)) {
+    if(ast.value == null) return [];
     return ast.value.reduce(function(acc, v) {
       findAllIdentifiers(v).forEach(function(v) {dedupeObj[v] = v;});
       return acc.concat(Object.keys(dedupeObj));
