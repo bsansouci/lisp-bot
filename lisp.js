@@ -254,7 +254,7 @@ function prettyPrint(node, optionalRefMapping, cycles) {
     case "string":
       return "\"" + node.value + "\"";
     case "list":
-      if(node.value.length === 0) return "nil";
+      if(node.value == null || node.value.length === 0) return "nil";
       return node.value.reduce(function(acc, v, i) {
         return acc + prettyPrint(v, optionalRefMapping, cycles) + (i < node.value.length - 1 ? " " : "");
       }, "(") + ")";
