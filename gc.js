@@ -37,12 +37,14 @@ function startGC(globalScope, allStackFrames, allMacros) {
   }
 
   function sweep(globalScope){
-    return Object.keys(globalScope).reduce((acc, k) => {
+    var ret = Object.keys(globalScope).reduce((acc, k) => {
       if (isMarked(k)){
         acc[k] = globalScope[k];
       }
       return acc;
     }, {});
+    console.log("Cleaned up " + (Object.keys(globalScope).length - Object.keys(ret).length) + " objects.");
+    return ret;
   }
 
   function mark(uuid){

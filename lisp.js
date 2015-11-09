@@ -103,6 +103,7 @@ function evaluate(ast) {
   var evaledAST = ast.value.map(evaluate);
 
   var func = evaledAST[0];
+  if (func.type !== "function" && typeof firstElem.value !== "string") return throwError("Trying to call something that isn't a function (received "+firstElem.type+").", firstElem);
   if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function (received "+func.type+").", firstElem);
 
   return evalLambda(func, evaledAST.slice(1), firstElem.charPos, firstElem.value);

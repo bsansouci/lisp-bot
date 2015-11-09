@@ -204,12 +204,30 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
   }
 }
 
+function replaceUndefinedList(node){
+  switch(node.type){
+    case 'list':
+      if (node.value == null){
+        node.value = [];
+      } else {
+        node.value.forEach(n => replaceUndefinedList(n));
+      }
+      break;
+    case 'function':
+      if (node.argNames == null){
+        node.argNames = [];
+      }
+      break;
+  }
+}
+
 // Main function
 db.once('value', function(snapshot) {
   var data = snapshot.val() || {};
   var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
   login(config, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
+    Object.keys(data.globalScope).forEach(k => replaceUndefinedList(data.globalScope[k]));
     startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allMacros || {});
   });
 });
