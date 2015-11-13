@@ -1,4 +1,3 @@
-var sys = require("sys");
 var stdin = process.openStdin();
 var lisp = require("./lisp");
 
