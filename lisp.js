@@ -3,6 +3,7 @@
 var fs = require("fs");
 
 var sourceString = "";
+var LOADING = false;
 
 function parse(str) {
   sourceString = str;
@@ -85,27 +86,26 @@ function evaluate(ast) {
     if(maybeMacro != null) return maybeMacro;
 
     if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
-    if(macroTable.hasOwnProperty(ast.value)) return new Node(macroTable[ast.value], "function", ast.charPos);
+    if(macroTable.hasOwnProperty(ast.value)) {
+      return new Node(macroTable[ast.value], "function", ast.charPos, {isMacro: true});
+    }
 
     throwError("Undeclared identifier `" + ast.value + "`", ast);
   }
   if(ast.value.length === 0) return ast;
 
   var firstElem = ast.value[0];
-  var maybeMacro = macroTable[firstElem.value];
-  if(maybeMacro) {
-    return maybeMacro(ast.value.slice(1), firstElem.charPos);
-  }
-
-  var maybeLocalMacro = getLocal(macroStack, firstElem.value);
-
-  if(maybeLocalMacro) {
-    return evaluate(evalLambda(maybeLocalMacro, ast.value.slice(1), firstElem.charPos, firstElem.value));
+  var func = evaluate(firstElem);
+  if(func.isMacro) {
+    if (macroTable[firstElem.value]) {
+      return evalLambda(func, ast.value.slice(1), firstElem.charPos, firstElem.value);
+    } else {
+      return evaluate(evalLambda(func, ast.value.slice(1), firstElem.charPos, firstElem.value));
+    }
   }
 
   var evaledAST = ast.value.map(evaluate);
 
-  var func = evaledAST[0];
   if (func.type !== "function" && typeof firstElem.value !== "string") return throwError("Trying to call something that isn't a function (received "+firstElem.type+").", firstElem);
   if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function (received "+func.type+").", firstElem);
 
@@ -116,7 +116,6 @@ function evalLambda(func, args, charPos, funcName) {
   if(localStack.length > 512) {
     throwError("Stack overflow > 512");
   }
-
   if(typeof func.value === 'function') {
     localStack.push(Object.assign({}, localStack[localStack.length - 1]));
     macroStack.push(Object.assign({}, macroStack[macroStack.length - 1]));
@@ -166,7 +165,6 @@ function evalLambda(func, args, charPos, funcName) {
   } catch(e) {
     var savedStack = localStack.pop();
     var savedMacro = macroStack.pop();
-    // TODO: Do something with the stacktrace plz
     throw stackTrace(e, funcName);
   }
 }
@@ -245,8 +243,9 @@ function prettyPrint(node, optionalRefMapping, cycles) {
     case "number":
       return node.value.toString();
     case "function":
-      if(typeof node.value === 'function') return "[Native Function]";
-      return "[Function: " + prettyPrint(node.argNames, optionalRefMapping, cycles) + " -> " + prettyPrint(node.value, optionalRefMapping, cycles) + "]";
+      var name = node.isMacro ? "Macro" : "Function";
+      if(typeof node.value === 'function') return "[Native "+name+"]";
+      return "["+name+": " + prettyPrint(node.argNames, optionalRefMapping, cycles) + " -> " + prettyPrint(node.value, optionalRefMapping, cycles) + "]";
     case "ref":
       if (cycles[node.uuid])
         return "[Circular Ref]"
@@ -328,6 +327,8 @@ var macroTable = {
       return throwError("First argument to define isn't an identifier", name);
     }
 
+    if (localStack.length > 2 + LOADING) throwError("Define can only be called from the top-level scope.", charPos);
+
     if(symbolTable.hasOwnProperty(name.value) || macroTable.hasOwnProperty(name.value)) throwError("Reserved, can't redefine " + name.value, name);
 
     var body = args[1];
@@ -362,8 +363,10 @@ var macroTable = {
       res.scope[name.value] = res.uuid;
     }
 
+
     uuidToNodeMap[res.uuid] = res;
-    localStack[localStack.length - 1][name.value] = res.uuid;
+    localStack[0][name.value] = res.uuid;
+    localStack[1][name.value] = res.uuid;
 
     return res;
   },
@@ -376,6 +379,9 @@ var macroTable = {
     if(name.type !== "identifier") {
       return throwError("First argument to define-once isn't an identifier", name);
     }
+
+    if (localStack.length > 2 + LOADING) throwError("Define-once can only be called from the top-level scope.", charPos);
+
 
     if (!getLocal(localStack, name.value)){
       return macroTable.define(args, charPos);
@@ -421,17 +427,26 @@ var macroTable = {
     return lambdaNode;
   },
   "quote": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
     return args[0];
   },
   "unquote": function(args, charPos) {
-    if(args.length === 0) throwError("The macro unquote takes one argument.", args);
-
+    checkNumArgs(charPos, args, 1);
     return evaluate(args[0]);
   },
   "define-macro": function(args, charPos) {
-    var name = args[0];
-    var lambda = args[1];
+    if (args.length !== 2 && args.length !== 3){
+      throwError("Improper number of arguments to define-macro. Expected: 2 or 3, got: "+args.length,charPos);
+    }
 
+    var name = args[0];
+    if(name.type !== "identifier") {
+      return throwError("First argument to define-macro isn't an identifier", name);
+    }
+    if (localStack.length > 2 + LOADING) throwError("Define can only be called from the top-level scope.", charPos);
+
+
+    var lambda = args[1];
     var docs = "No docs";
 
     // Adding optional comments when defining functions
@@ -454,8 +469,8 @@ var macroTable = {
     }
 
     uuidToNodeMap[evaledLambda.uuid] = evaledLambda;
-    macroStack[macroStack.length - 1][name.value] = evaledLambda.uuid;
-
+    macroStack[0][name.value] = evaledLambda.uuid;
+    macroStack[1][name.value] = evaledLambda.uuid;
     return evaledLambda;
   },
   "syntax-quote": function(args, charPos) {
@@ -499,6 +514,7 @@ var macroTable = {
     console.log("Loading", name);
     var arr = data.split('\n');
     var rest = "";
+    LOADING++;
     for (var i = 0; i < arr.length; i++) {
       var s = (rest + " " + arr[i]).trim();
       var arr2 = s.split('');
@@ -517,27 +533,51 @@ var macroTable = {
       s = s.replace(/\n|\s+/g, " ");
       if(s.length === 0) continue;
 
-      //try {
+      try {
       evaluate(parse(s));
-      //} catch (e) {
+      } catch (e) {
         // console.error(e);
-      //  throwError(e.toString(), charPos);
-      //}
+        LOADING--;
+        throw e;
+      }
+        //throwError(e.toString(), charPos);
     }
+    LOADING--;
     //console.log("--------------------");
     return makeArr(charPos);
   },
   "apply-macro": function(args, charPos) {
     checkNumArgs(charPos, args, 2);
 
-    var func = args[0];
+    var func = evaluate(args[0]) ;
     var arr = args[1];
-    if(func.type !== "function") throwError("First argument should be a function.", func);
-    if(!isList(arr)) throwError("Second argument should be a list.", func);
+    if(func.type !== "function") throwError("First argument to apply-macro should be a function. Got "+func.type+" instead.", func);
+    if(arr.type !== "list") throwError("Second argument to apply-macro should be a list. Got "+arr.type+" instead.", func);
     if(!func.isMacro) throwError("Cannot call apply-macro on functions. Use `apply` instead.", func);
 
     return evaluate(evalLambda(func, arr.value, charPos));
   },
+  "let" : function(args, charPos) {
+    checkNumArgs(charPos, args, 2);
+    var vars = args[0];
+    var body = args[1];
+    if (vars.value.length%2 !== 0){
+      throwError("An even length list must be the first argument to let.", charPos);
+    }
+
+    var varsMap = vars.value.filter((v, i) => !(i%2)).reduce((acc,v,i) => (Object.assign(acc, {[i*2]: vars.value[i*2+1]})), {});
+    var identMap = {};
+    Object.keys(varsMap).forEach(i => vars.value[i].type === "identifier" ? null
+      : throwError("You can only assign to an identifier.  Tried to assign to "+vars.value[i].type, vars.value[i].charPos));
+
+    Object.keys(varsMap).forEach(
+      i => {
+        var k = vars.value[i];
+        var evaled = evaluate(varsMap[i]);
+        uuidToNodeMap[evaled.uuid] = evaled;
+        localStack[localStack.length - 1][k.value] = evaled.uuid;});
+    return evaluate(body);
+  }
 };
 
 var symbolTable = {

@@ -5,7 +5,7 @@
 
 (define nil?
   "Returns true if argument is nil."
-  (lambda (x) (equal? () x)))
+  (lambda (x) (equal? nil x)))
 
 (define identity "Returns what is passed in." (lambda (x) x))
 
@@ -161,7 +161,7 @@ other tests or exprs."
         (cons (car coll) (every-other-even (cdr coll)))
         (every-other-even (cdr coll))))))
 
-(define-macro let
+(; define-macro let
   "Todo"
   (lambda (vars body)
     `((lambda ~(every-other-even vars) ~body) ~@(every-other-odd vars))))
@@ -199,16 +199,16 @@ other tests or exprs."
       (cons (car list) (remove-nth (cdr list) (- n 1)))
 )))
 
-(define get-last (lambda (lst)
+(define last (lambda (lst)
   (cond
     ((nil? lst) lst)
     ((nil? (cdr lst)) (car lst))
-    (true (get-last (cdr lst)))
+    (true (last (cdr lst)))
   )
 ))
 
 (define do
-  (lambda (args ...) (get-last args)))
+  (lambda (args ...) (last args)))
 
 (define range (lambda (fst args ...)
   (if (nil? args)
@@ -219,11 +219,6 @@ other tests or exprs."
     )
   )
 ))
-
-(define hashmap
-"Creates a hashmap.  Can be followed by alternating keys and values to initialize it."
-  (lambda (init ...)
-  (foldr (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
 
 (define assoc
     "Takes a hashmap, a key and a value, and returns a hashmap with the (key value) pair added to it  ."
@@ -246,6 +241,11 @@ other tests or exprs."
                                                  (if (equal? (car v) (car args))
                                                    (car (cdr v))
                                                    acc)) '() m)))))))))
+
+(define hashmap
+"Creates a hashmap.  Can be followed by alternating keys and values to initialize it."
+  (lambda (init ...)
+  (foldr (lambda (prevhm tup) (apply assoc (cons prevhm tup))) (lambda (a ...) '()) init)))
 
 (define dissoc
   "Takes a hashmap and an arbitrary number of keys, and returns a hashmap with the keys removed."
