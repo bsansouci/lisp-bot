@@ -207,16 +207,13 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 function replaceUndefinedList(node){
   switch(node.type){
     case 'list':
-      if (node.value == null){
-        node.value = [];
-      } else {
-        node.value.forEach(n => replaceUndefinedList(n));
-      }
+      node.value = node.value || [];
+      node.value.forEach(n => replaceUndefinedList(n));
       break;
     case 'function':
-      if (node.argNames == null){
-        node.argNames = [];
-      }
+      node.argNames = node.argNames || [];
+      node.scope = node.scope || {};
+      node.macroScope = node.macroScope || {}
       break;
   }
 }
