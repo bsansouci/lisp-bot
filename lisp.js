@@ -104,18 +104,19 @@ function evaluate(ast) {
     }
   }
 
-  var evaledAST = ast.value.map(evaluate);
-
   if (func.type !== "function" && typeof firstElem.value !== "string") return throwError("Trying to call something that isn't a function (received "+firstElem.type+").", firstElem);
   if(func.type !== "function") return throwError("Identifier '" + firstElem.value + "' isn't a function (received "+func.type+").", firstElem);
 
-  return evalLambda(func, evaledAST.slice(1), firstElem.charPos, firstElem.value);
+  return evalLambda(func, ast.value.slice(1), firstElem.charPos, firstElem.value);
 }
 
 function evalLambda(func, args, charPos, funcName) {
   if(localStack.length > 512) {
     throwError("Stack overflow > 512");
   }
+  if (!func.isMacro) args = args.map(evaluate);
+
+  // Native functions/macros
   if(typeof func.value === 'function') {
     localStack.push(Object.assign({}, localStack[localStack.length - 1]));
     macroStack.push(Object.assign({}, macroStack[macroStack.length - 1]));
@@ -130,8 +131,8 @@ function evalLambda(func, args, charPos, funcName) {
       throw stackTrace(e, funcName);
     }
   }
-  var argNames = func.argNames.value || [];
 
+  var argNames = func.argNames.value || [];
   var variadicArgs = argNames.length > 1 && argNames[argNames.length - 1].value === "...";
   if((!variadicArgs && args.length !== argNames.length) || (variadicArgs && args.length < argNames.length - 2)) {
     throwError("Improper number of arguments. Expected: " + (variadicArgs ? argNames.length - 2 : argNames.length) + ", got: " + args.length, charPos);
@@ -546,17 +547,6 @@ var macroTable = {
     //console.log("--------------------");
     return makeArr(charPos);
   },
-  "apply-macro": function(args, charPos) {
-    checkNumArgs(charPos, args, 2);
-
-    var func = evaluate(args[0]) ;
-    var arr = args[1];
-    if(func.type !== "function") throwError("First argument to apply-macro should be a function. Got "+func.type+" instead.", func);
-    if(arr.type !== "list") throwError("Second argument to apply-macro should be a list. Got "+arr.type+" instead.", func);
-    if(!func.isMacro) throwError("Cannot call apply-macro on functions. Use `apply` instead.", func);
-
-    return evaluate(evalLambda(func, arr.value, charPos));
-  },
   "let" : function(args, charPos) {
     checkNumArgs(charPos, args, 2);
     var vars = args[0];
@@ -642,17 +632,6 @@ var symbolTable = {
     if(!isList(arr)) arr = makeArr(charPos, arr);
 
     return makeArr.apply(null, [charPos, el].concat(arr.value));
-  },
-  "apply": function(args, charPos) {
-    checkNumArgs(charPos, args, 2);
-
-    var func = args[0];
-    var arr = args[1];
-    if(func.type !== "function") throwError("First argument should be a function.", func);
-    if(!isList(arr)) throwError("Second argument should be a list.", func);
-    if(func.isMacro) throwError("Cannot call apply on macros. Use `apply-macro` instead.", func);
-
-    return evalLambda(func, arr.value, charPos);
   },
   "equal?" : function(args, charPos) {
     if (args.length < 2) throwError("equal? takes two arguments. You gave " + args.length, args[0]);
@@ -740,7 +719,21 @@ var symbolTable = {
     }
     return uuidToNodeMap[args[0].value];
   },
+  "apply": function(args, charPos) {
+    checkNumArgs(charPos, args, 2);
+
+    var func = evaluate(args[0]);
+    var arr = args[1];
+    if(func.type !== "function") throwError("First argument should be a function.", func);
+    if(!isList(arr)) throwError("Second argument should be a list.", func);
+    var quotedArr = arr.value.map(quoteNode);
+    return evalLambda(func, quotedArr, charPos, args[0].value);
+  },
 };
+
+function quoteNode(n){
+  return makeArr(n.charPos, new Node("quote", "identifier", n.charPos), n);
+}
 
 function areStructurallyEqual(obj1, obj2){
   if (obj1 === obj2) return true;
