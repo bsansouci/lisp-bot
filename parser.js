@@ -62,52 +62,71 @@ function removeEmpty(arr) {
 function computeFirstSets(rules) {
   var first = {};
   rules.forEach(rule => {
-    first[rule.lhs] = rule.lhs === 'start-token' ? [""] : [];
     rule.rhs.forEach(token => {
       first[token] = isTerminal(rules, token) ? [token] : [];
     });
   });
+  first['start-token'] = [''];
+  first[''] = [''];
+  rules.forEach(rule => {
+    if (first[rule.lhs] == null) throw new Error("Unused rule -> " + rule.lhs);
+  });
 
   var stillChange = true;
-  while(stillChange) {
+  while (stillChange) {
     stillChange = false;
     rules.forEach(rule => {
+      var len = first[rule.lhs].length;
       if (rule.rhs.length === 0) {
-        var len = first[rule.lhs].length;
-        first[rule.lhs] = dedupe(first[rule.lhs].concat([""]), v => v);
-        if (first[rule.lhs].length !== len) stillChange = true;
+        first[rule.lhs] = dedupe(first[rule.lhs].concat(['']), v => v);
       } else {
         var containedEmpty = false;
         var i = 0;
         do {
           var len = first[rule.lhs].length;
           containedEmpty = first[rule.rhs[i]].filter(token => token.length === 0).length > 0;
-          console.log(containedEmpty);
-          first[rule.lhs] = dedupe(first[rule.lhs].concat(removeEmpty(first[rule.rhs[i]])), v => v)
+          first[rule.lhs] = dedupe(first[rule.lhs].concat(removeEmpty(first[rule.rhs[i]])), v => v);
           if (first[rule.lhs].length !== len) stillChange = true;
           i++;
         } while (containedEmpty && i < rule.rhs.length);
         if (containedEmpty) first[rule.lhs].push("");
-
       }
-    })
+      if (first[rule.lhs].length !== len) stillChange = true;
+    });
   }
 
   return first;
+}
+
+function getFirst(first, sequence) {
+  var thing = [];
+  var containedEmpty = false;
+  var i = 0;
+  do {
+    var len = thing.length;
+    containedEmpty = first[sequence[i]].filter(token => token.length === 0).length > 0;
+    thing = dedupe(thing.concat(removeEmpty(first[sequence[i]])), v => v);
+    if (thing.length !== len) stillChange = true;
+    i++;
+  } while (containedEmpty && i < sequence.length);
+  if (containedEmpty) thing.push("");
+
+  return thing;
 }
 
 function makeClosure(rules, first, items) {
   var closure = items;
   items.forEach(function(item) {
     var curRule = rules[item.rule];
+    if (item.dotPos === curRule.rhs.length) return;
+
     var nextToken = curRule.rhs[item.dotPos];
     var nextRules = rules.filter(v => v.lhs === nextToken);
 
-    var lookaheads = [item.lookahead];
-    // Should use lookaheads
-    if (item.dotPos < curRule.rhs.length) {
-      lookaheads = first[nextToken];
-    }
+    var lookaheads = getFirst(first, curRule.rhs.slice(item.dotPos + 1).concat([item.lookahead]));
+    // if(lookaheads.length === 1 && lookaheads[0].length === 0) {
+    //   lookaheads = [item.lookahead];
+    // }
     nextRules.forEach(rule => {
       lookaheads.forEach(lookahead => {
         var newItem = {
@@ -201,6 +220,7 @@ function makeTable(rules) {
     .forEach(arr => {
       var curToken = arr[0];
       var item = arr[1];
+      if(item.lookahead.length === 0) console.log("LJIsadljiasdhjdsahjdsahjldas", item, rules[item.rule]);
       if (isReduction(rules, item)) {
         if (curState.actions[item.lookahead]) throw new Error("Conflict detected: reduce/"+curState.actions[item.lookahead].type);
         curState.actions[item.lookahead] = {
@@ -230,7 +250,7 @@ function makeTable(rules) {
               },
             });
           }
-          console.log("Goto ", curToken);
+          // console.log("Goto ", curToken);
         } else {
 
           // if (curState.actions[curToken] && curState.actions[curToken].type !== "shift") throw new Error("Conflict detected: shift/" + curState.actions[curToken].type + " ---- " + JSON.stringify(item) + "/"+ JSON.stringify(curState.actions[curToken].item));
@@ -270,10 +290,89 @@ function dedupe(arr, hash) {
   return Object.keys(obj).map(key => obj[key]);
 }
 
+function findMatch(inputStream, tokens, regexTable) {
+  var matches = [];
+  tokens.forEach(token => {
+    if (token.length === 0) return;
+    var regex = regexTable.filter(r => token === r.lhs)[0];
+    var res = inputStream.str.match(regex.rhs);
+    if (!res || res.index > 0) return;
+    matches.push({key: regex.lhs, value: res[0]});
+  });
+
+  var longestMatch = {key: "", value: ""};
+  matches.forEach(match => {
+    if (match.value.length > longestMatch.value.length) {
+      longestMatch = match;
+    }
+  });
+
+  var maybeDuplicates = matches.filter(match => match.value.length === longestMatch.value.length);
+  if (maybeDuplicates.length > 1) throw new Error("Matched two things at " + inputStream + " with " + JSON.stringify(maybeDuplicates));
+  if (maybeDuplicates.length === 0) throw new Error("something something");
+
+  inputStream.str = inputStream.str.substring(maybeDuplicates[0].value.length);
+  var kvp = {key: maybeDuplicates[0].key, value: null};
+  return maybeDuplicates[0];
+}
+
+function parse(table, regexTable, rules, inputString) {
+  var tokenStack = [];
+  var stateStack = [0];
+  var inputStream = {str: inputString};
+  while (true) {
+    var state = table[stateStack[stateStack.length - 1]];
+    var action;
+    if (inputStream.str.length === 0) {
+      // console.log("-++-_=-+__-+_", state.actions, regexTable);
+      action = state.actions[""];
+    } else {
+      var keyValuePair = findMatch(inputStream, Object.keys(state.actions).filter(isTerminal.bind(null, rules)), regexTable);
+      console.log("QQQQQQ", tokenStack, stateStack);
+      action = state.actions[keyValuePair.key || ""];
+    }
+    if (!action) {
+      console.log("DONE -------------------> ", inputStream, state);
+      return {success: false, value: null};
+    }
+    switch (action.type) {
+      case "reduce":
+        var rule = rules[action.value];
+        argList = tokenStack.slice(tokenStack.length - rule.rhs.length);
+        tokenStack = tokenStack.slice(0, tokenStack.length - rule.rhs.length);
+        stateStack = stateStack.slice(0, stateStack.length - rule.rhs.length);
+
+        // call rule.lambda with argList.map(kvp => kvp.value)
+        var result = {key: rule.lhs, value: null};
+        tokenStack.push(result);
+
+        console.log(`\tREDUCE -> ${pprintRule(regexTable, rule, "")}`);
+
+        if (rule.lhs === "start-token") return {success: true, value: result.value};
+
+        var gotoState = stateStack[stateStack.length - 1];
+        console.log(`\tGOTO ${gotoState}`);
+        stateStack.push(table[gotoState].actions[rule.lhs].value);
+        break;
+      case "shift":
+        tokenStack.push(keyValuePair);
+        stateStack.push(action.value);
+        console.log(`\tSHIFT ${action.value}`)
+        break;
+    }
+  }
+
+}
+
+function findRule(arr, token) {
+  return arr.filter(v => v.lhs === token)[0];
+}
+
 var lisp = require("./lisp");
 var cfg = require('./cfg.gen');
 var rules = makeRules(cfg.value[2].value[2].value[1]);
 var regexTable = rules[1];
-console.log(pprintRules(rules[0], regexTable));
+// console.log(pprintRules(rules[0], regexTable));
 var table = makeTable(rules[0]);
-console.log(pprintTable(regexTable, table));
+// console.log(pprintTable(regexTable, table));
+console.log(parse(table, regexTable, rules[0], "(1)"));
