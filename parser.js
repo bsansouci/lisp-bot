@@ -11,6 +11,8 @@ var uuid = (function() {
   }
 })();
 
+const EOF = uuid();
+
 function makeRules(ast) {
   var table = [];
   var regexTable = [];
@@ -66,8 +68,9 @@ function computeFirstSets(rules) {
       first[token] = isTerminal(rules, token) ? [token] : [];
     });
   });
-  first['start-token'] = [''];
-  first[''] = [''];
+  first['start-token'] = [EOF];
+  first[EOF] = [EOF];
+  // first[''] = [''];
   rules.forEach(rule => {
     if (first[rule.lhs] == null) throw new Error("Unused rule -> " + rule.lhs);
   });
@@ -89,7 +92,7 @@ function computeFirstSets(rules) {
           if (first[rule.lhs].length !== len) stillChange = true;
           i++;
         } while (containedEmpty && i < rule.rhs.length);
-        if (containedEmpty) first[rule.lhs].push("");
+        if (containedEmpty) first[rule.lhs].push('');
       }
       if (first[rule.lhs].length !== len) stillChange = true;
     });
@@ -99,23 +102,26 @@ function computeFirstSets(rules) {
 }
 
 function getFirst(first, sequence) {
+  if (sequence.length === 0) return [];
+
   var thing = [];
   var containedEmpty = false;
   var i = 0;
   do {
     var len = thing.length;
+    // console.log(sequence, first);
     containedEmpty = first[sequence[i]].filter(token => token.length === 0).length > 0;
     thing = dedupe(thing.concat(removeEmpty(first[sequence[i]])), v => v);
     if (thing.length !== len) stillChange = true;
     i++;
   } while (containedEmpty && i < sequence.length);
-  if (containedEmpty) thing.push("");
+  if (containedEmpty) thing.push('');
 
   return thing;
 }
 
 function makeClosure(rules, first, items) {
-  var closure = items;
+  var closure = items.slice();
   items.forEach(function(item) {
     var curRule = rules[item.rule];
     if (item.dotPos === curRule.rhs.length) return;
@@ -124,9 +130,7 @@ function makeClosure(rules, first, items) {
     var nextRules = rules.filter(v => v.lhs === nextToken);
 
     var lookaheads = getFirst(first, curRule.rhs.slice(item.dotPos + 1).concat([item.lookahead]));
-    // if(lookaheads.length === 1 && lookaheads[0].length === 0) {
-    //   lookaheads = [item.lookahead];
-    // }
+
     nextRules.forEach(rule => {
       lookaheads.forEach(lookahead => {
         var newItem = {
@@ -134,8 +138,7 @@ function makeClosure(rules, first, items) {
           dotPos: 0,
           lookahead: lookahead,
         };
-        if (!closure.some(v => v.rule === newItem.rule
-                              && v.lookahead === newItem.lookahead)) {
+        if (!closure.some(v => v.rule === newItem.rule && v.lookahead === newItem.lookahead)) {
           closure.push(newItem);
         }
       })
@@ -154,6 +157,7 @@ function isTerminal(rules, token) {
 }
 
 function getRegexLhs(regexTable, token) {
+  if (token === EOF) return "EOF";
   var regex = regexTable.filter(r => r.lhs === token)[0];
   return `${regex ? `REGEX (${regex.rhs})` : `"${token}"`}`;
 }
@@ -192,7 +196,7 @@ function makeTable(rules) {
       curState.items = [{
         rule: rules.indexOf(startRule),
         dotPos: 0,
-        lookahead: ""
+        lookahead: EOF
       }];
     } else {
       curState.items = table[curState.init.state].items
@@ -220,7 +224,7 @@ function makeTable(rules) {
     .forEach(arr => {
       var curToken = arr[0];
       var item = arr[1];
-      if(item.lookahead.length === 0) console.log("LJIsadljiasdhjdsahjdsahjldas", item, rules[item.rule]);
+      // if(item.lookahead.length === 0) console.log("LJIsadljiasdhjdsahjdsahjldas", item, rules[item.rule]);
       if (isReduction(rules, item)) {
         if (curState.actions[item.lookahead]) throw new Error("Conflict detected: reduce/"+curState.actions[item.lookahead].type);
         curState.actions[item.lookahead] = {
@@ -291,11 +295,14 @@ function dedupe(arr, hash) {
 }
 
 function findMatch(inputStream, tokens, regexTable) {
+  if (inputStream.str.length === 0) return {key: EOF, value: null, matched: ""};
+
   var matches = [];
   tokens.forEach(token => {
     if (token.length === 0) return;
     var regex = regexTable.filter(r => token === r.lhs)[0];
     var res = inputStream.str.match(regex.rhs);
+    console.log("matching " + inputStream.str + " VS " + regex.rhs);
     if (!res || res.index > 0) return;
     matches.push({key: regex.lhs, value: res[0]});
   });
@@ -309,11 +316,17 @@ function findMatch(inputStream, tokens, regexTable) {
 
   var maybeDuplicates = matches.filter(match => match.value.length === longestMatch.value.length);
   if (maybeDuplicates.length > 1) throw new Error("Matched two things at " + inputStream + " with " + JSON.stringify(maybeDuplicates));
-  if (maybeDuplicates.length === 0) throw new Error("something something");
+  if (maybeDuplicates.length === 0) {
+    if (inputStream.str.match(/^\s+/)) {
+      inputStream.str = inputStream.str.replace(/^\s+/, '');
+      return findMatch(inputStream, tokens, regexTable);
+    } else {
+      throw new Error("Couldn't find any regex that matched '" + inputStream.str + "'");
+    }
+  }
 
-  inputStream.str = inputStream.str.substring(maybeDuplicates[0].value.length);
-  var kvp = {key: maybeDuplicates[0].key, value: null};
-  return maybeDuplicates[0];
+  var kvp = {key: maybeDuplicates[0].key, value: null, matched: maybeDuplicates[0].value};
+  return kvp;
 }
 
 function parse(table, regexTable, rules, inputString) {
@@ -322,15 +335,9 @@ function parse(table, regexTable, rules, inputString) {
   var inputStream = {str: inputString};
   while (true) {
     var state = table[stateStack[stateStack.length - 1]];
-    var action;
-    if (inputStream.str.length === 0) {
-      // console.log("-++-_=-+__-+_", state.actions, regexTable);
-      action = state.actions[""];
-    } else {
-      var keyValuePair = findMatch(inputStream, Object.keys(state.actions).filter(isTerminal.bind(null, rules)), regexTable);
-      console.log("QQQQQQ", tokenStack, stateStack);
-      action = state.actions[keyValuePair.key || ""];
-    }
+    var keyValuePair = findMatch(inputStream, Object.keys(state.actions).filter(isTerminal.bind(null, rules)), regexTable);
+    console.log("QQQQQQ", tokenStack, stateStack);
+    var action = state.actions[keyValuePair.key];
     if (!action) {
       console.log("DONE -------------------> ", inputStream, state);
       return {success: false, value: null};
@@ -355,6 +362,8 @@ function parse(table, regexTable, rules, inputString) {
         stateStack.push(table[gotoState].actions[rule.lhs].value);
         break;
       case "shift":
+        inputStream.str = inputStream.str.substring(keyValuePair.matched.length);
+        console.log(inputStream.str);
         tokenStack.push(keyValuePair);
         stateStack.push(action.value);
         console.log(`\tSHIFT ${action.value}`)
@@ -375,4 +384,4 @@ var regexTable = rules[1];
 // console.log(pprintRules(rules[0], regexTable));
 var table = makeTable(rules[0]);
 // console.log(pprintTable(regexTable, table));
-console.log(parse(table, regexTable, rules[0], "(1)"));
+console.log(parse(table, regexTable, rules[0], "(define update! (lambda (some-ref fn) (set! some-ref (fn (get some-ref)))))"));
