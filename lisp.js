@@ -571,6 +571,28 @@ var macroTable = {
 };
 
 var symbolTable = {
+  "reverse-hack": function(args, charPos) {
+    return new Node(args[0].value.reverse(), "list", charPos);
+   },
+  "parse-int": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    return new Node(parseInt(args[0].value), "number", charPos);
+  },
+  "parse-identifier": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    return new Node(args[0].value, "identifier", charPos);
+  },
+  "parse-string": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    return new Node(args[0].value, "string", charPos);
+  },
+  "parse-bool": function(args, charPos) {
+    checkNumArgs(charPos, args, 1);
+    if (args[0].value !== "true" && args[0].value !== "false") {
+      throwError("Cannot call parse-bool on '" + args[0].value + "'.", args[0]);
+    }
+    return new Node(args[0].value === "true", "boolean", charPos);
+  },
    "<": function(args, charPos) {
     return new Node(args[0].value < args[1].value, "boolean", charPos);
   },
@@ -887,5 +909,8 @@ module.exports = {
   prettyPrint: prettyPrint,
   addFunction: addFunction,
   addMacro: addMacro,
-  evaluateWith: evaluateWith
+  evaluateWith: evaluateWith,
+  evalLambda: evalLambda,
+  toLispData: toLispData,
+  quoteNode: quoteNode,
 };
