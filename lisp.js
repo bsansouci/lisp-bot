@@ -258,7 +258,7 @@ function prettyPrint(node, optionalRefMapping, cycles) {
     case "string":
       return "\"" + node.value + "\"";
     case "list":
-      if(node.value == null || node.value.length === 0) return "nil";
+      if(node.value == null || node.value.length === 0) return "()";
       return node.value.reduce(function(acc, v, i) {
         return acc + prettyPrint(v, optionalRefMapping, cycles) + (i < node.value.length - 1 ? " " : "");
       }, "(") + ")";
@@ -584,9 +584,7 @@ var symbolTable = {
   },
   "parse-string": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
-    console.log("Temporary hack - Removing quotes around parse-string nodes' value.");
-    // Remove quotes
-    return new Node(args[0].value.substring(1, args[0].value.length - 1), "string", charPos);
+    return new Node(args[0].value, "string", charPos);
   },
   "parse-boolean": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
