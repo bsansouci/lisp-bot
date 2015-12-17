@@ -584,9 +584,11 @@ var symbolTable = {
   },
   "parse-string": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
-    return new Node(args[0].value, "string", charPos);
+    console.log("Temporary hack - Removing quotes around parse-string nodes' value.");
+    // Remove quotes
+    return new Node(args[0].value.substring(1, args[0].value.length - 1), "string", charPos);
   },
-  "parse-bool": function(args, charPos) {
+  "parse-boolean": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
     if (args[0].value !== "true" && args[0].value !== "false") {
       throwError("Cannot call parse-bool on '" + args[0].value + "'.", args[0]);

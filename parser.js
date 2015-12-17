@@ -79,7 +79,7 @@ function computeFirstSets(rules) {
   });
   first['start-token'] = [];
   first[EOF] = [EOF];
-  // first[''] = [''];
+
   rules.forEach(rule => {
     if (first[rule.lhs] == null) throw new Error("Unused rule -> " + rule.lhs);
   });
@@ -173,13 +173,7 @@ function isTerminal(rules, token) {
 function getRegexLhs(regexTable, token) {
   if (token === EOF) return "EOF";
   var regex = regexTable.filter(r => r.lhs === token)[0];
-  return `${regex ? `
-  REGEX($ {
-    regex.rhs
-  })
-  ` : `
-  "${token}"
-  `}`;
+  return `${regex ? `REGEX(${regex.rhs})` : `"${token}"`}`;
 }
 
 function pprintRule(regexTable, rule, i) {
@@ -191,24 +185,7 @@ function pprintRules(rules, regexTable) {
 }
 
 function pprintRow(regexTable, row, i) {
-  return `${i}: ${row.items.map(item => ` ($ {
-    item.rule
-  }, $ {
-    getRegexLhs(regexTable, item.lookahead)
-  }, $ {
-    item.dotPos
-  })
-  `).join(", ")} \n${Object.keys(row.actions).map(key => `\
-  t$ {
-    getRegexLhs(regexTable, key)
-  }\
-  n\ t\ t: $ {
-    row.actions[key].type
-  }
-  $ {
-    row.actions[key].value
-  }
-  `).join("\n")}`;
+  return `${i}: ${row.items.map(item => `(${item.rule}, ${getRegexLhs(regexTable, item.lookahead)}, ${item.dotPos})`).join(", ")} \n${Object.keys(row.actions).map(key => `\t${getRegexLhs(regexTable, key)}\n\t\t: ${row.actions[key].type}${row.actions[key].value}`).join("\n")}`;
 }
 
 function pprintTable(regexTable, table) {
@@ -227,9 +204,7 @@ function makeTable(rules) {
   });
 
   var first = computeFirstSets(rules);
-  console.log(first);
-  console.log(Object.keys(first).map(key => [(regexTable.filter(r => r.lhs ===
-    key)[0] || {}).rhs, key]));
+
   // Table grows as we iterate over it
   for (var i = 0; i < table.length; i++) {
     var curState = table[i];
@@ -252,12 +227,11 @@ function makeTable(rules) {
           };
         });
     }
-    // console.log("=============================================== ", i, curState.init);
+
     // Get the closures until we hit the fixed point
     while (true) {
       var prevLength = curState.items.length;
       curState.items = makeClosure(rules, first, curState.items);
-      // console.log("---------------");
       if (prevLength === curState.items.length) break;
     }
 
@@ -266,7 +240,7 @@ function makeTable(rules) {
       .forEach(arr => {
         var curToken = arr[0];
         var item = arr[1];
-        // if(item.lookahead.length === 0) console.log("LJIsadljiasdhjdsahjdsahjldas", item, rules[item.rule]);
+
         if (isReduction(rules, item)) {
           if (curState.actions[item.lookahead]) throw new Error(
             "Conflict detected: reduce/" + curState.actions[item.lookahead]
@@ -276,7 +250,6 @@ function makeTable(rules) {
             value: item.rule,
             item: item,
           };
-          // console.log("Reduction ", item.rule, rules[item.rule], item.lookahead, curToken);
         } else {
           var maybePreviousState = table.filter(v => v.init != null &&
             compareItemSets(table[v.init.state].items, curState.items) && v
@@ -300,9 +273,8 @@ function makeTable(rules) {
                 },
               });
             }
-            // console.log("Goto ", curToken);
           } else {
-            // if (curState.actions[curToken] && curState.actions[curToken].type !== "shift") throw new Error("Conflict detected: shift/" + curState.actions[curToken].type + " ---- " + JSON.stringify(item) + "/"+ JSON.stringify(curState.actions[curToken].item));
+            if (curState.actions[curToken] && curState.actions[curToken].type !== "shift") throw new Error("Conflict detected: shift/" + curState.actions[curToken].type + " ---- " + JSON.stringify(item) + "/"+ JSON.stringify(curState.actions[curToken].item));
             if (maybePreviousState != null) {
               curState.actions[curToken] = {
                 type: "shift",
@@ -322,7 +294,6 @@ function makeTable(rules) {
                 },
               });
             }
-            // console.log("Shift ", curToken);
           }
         }
       });
@@ -370,7 +341,6 @@ function findMatch(inputStream, tokens, regexTable) {
   tokens.forEach(token => {
     if (token.length === 0) return;
     var regex = regexTable.filter(r => token === r.lhs)[0];
-    // console.log(regexTable, token);
     var res = inputStream.str.match(regex.rhs);
     if (!res || res.index > 0) return;
     matches.push({
@@ -389,10 +359,11 @@ function findMatch(inputStream, tokens, regexTable) {
     }
   });
 
-  var maybeDuplicates = matches.filter(match => match.value.length ===
-    longestMatch.value.length);
-  if (maybeDuplicates.length > 1) throw new Error("Matched two things at " +
-    inputStream + " with " + JSON.stringify(maybeDuplicates));
+  var maybeDuplicates = matches.filter(match => match.value.length === longestMatch.value.length);
+  // We shouldn't throw in the case of our own cfg:
+  // "true" matches identifier and boolean, and the matches are of the same
+  // length, but boolean is defined first so that's the one that should be used.
+  // if (maybeDuplicates.length > 1) throw new Error("Matched two things at " + inputStream.str + " with " + JSON.stringify(maybeDuplicates.map(v => getRegexLhs(regexTable, v.key))));
   if (maybeDuplicates.length === 0) {
     if (inputStream.str.match(/^\s+/)) {
       inputStream.str = inputStream.str.replace(/^\s+/, '');
@@ -461,12 +432,19 @@ function findRule(arr, token) {
   return arr.filter(v => v.lhs === token)[0];
 }
 
-var lisp = require("./lisp");
-var cfg = require('./cfg.gen');
-var rules = makeRules(cfg.value[2].value[2].value[1]);
-var regexTable = rules[1];
-console.log(pprintRules(rules[0], regexTable));
-var table = makeTable(rules[0]);
-// console.log(pprintTable(regexTable, table));
-var test = parse(table, regexTable, rules[0], "(1 (2 3))");
-console.log(lisp.prettyPrint(test.value));
+module.exports = {
+  makeRules: makeRules,
+  makeTable: makeTable,
+  parse: parse,
+}
+
+// var lisp = require("./lisp");
+// var cfg = require('./cfg.gen');
+// var rules = makeRules(cfg.value[2].value[2].value[1]);
+// var ruleTable = rules[0];
+// var regexTable = rules[1];
+// var table = makeTable(ruleTable);
+// console.log(pprintRules(ruleTable, regexTable));
+// // console.log(pprintTable(regexTable, table));
+// var test = parse(table, regexTable, ruleTable, "(define core (lambda () (quote ((start-token (expr) (lambda (x) x)) (expr (list-token) (lambda (x) x) (atom-token) (lambda (x) x)) (list-token (\"\\(\" expr-list \"\\)\") (lambda (_ x _) x) (\"\\(\" \"\\)\") (lambda (_ _) (quote ()))) (atom-token (\"\\-?\\d*\\.?\\d*e?\\-?\\d+\") parse-int (\"[^ ()0-9]+[^ ()]*\") parse-identifier (\"\\\"([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*\\\"\") parse-string (\"true|false\") parse-boolean) (expr-list (expr-list expr) (lambda (coll e) (cons e coll)) (expr) (lambda (args ...) args))))))");
+// console.log(lisp.prettyPrint(test.value));

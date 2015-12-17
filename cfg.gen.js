@@ -206,13 +206,13 @@ module.exports = {
     "value": "define",
     "type": "identifier",
     "charPos": 1,
-    "uuid": "25979d14-00ef-ebe9-145f-fbb9c5188590"
+    "uuid": "75f1a407-8574-3cf8-2747-5b48f3bec8c0"
   }, {
     "src": "",
     "value": "core",
     "type": "identifier",
     "charPos": 7,
-    "uuid": "fa19717c-f016-4cac-3bf5-d65ee0e2a815"
+    "uuid": "058e6e3f-9a99-6212-3a44-bc33dff15354"
   }, {
     "src": "",
     "value": [{
@@ -220,21 +220,21 @@ module.exports = {
       "value": "lambda",
       "type": "identifier",
       "charPos": 13,
-      "uuid": "7c60b29b-42d1-0cf1-87f0-0caf7298d0cd"
+      "uuid": "00f15516-93b6-539c-bdab-587a949a0e83"
     }, {
       "src": "",
       "value": [],
       "type": "list",
       "charPos": 19,
-      "uuid": "e59c8a79-d529-f3b6-b6d8-e3dc42d53436"
+      "uuid": "372cc0e6-d601-6f7f-dd72-71a8031c1d4d"
     }, {
       "src": "",
       "value": [{
         "src": "",
         "value": "quote",
         "type": "identifier",
-        "charPos": 22,
-        "uuid": "45973f3f-7a37-9f08-a70f-0e32f372cae3"
+        "charPos": 23,
+        "uuid": "155dca8b-0f9a-07e5-06b1-483ae6c38da8"
       }, {
         "src": "",
         "value": [{
@@ -243,536 +243,590 @@ module.exports = {
             "src": "",
             "value": "start-token",
             "type": "identifier",
-            "charPos": 25,
-            "uuid": "12921864-d814-574d-cc88-2a742e1dca24"
+            "charPos": 30,
+            "uuid": "28506485-9a3d-0fdd-6965-ebc3bcc80ecc"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "expr",
               "type": "identifier",
-              "charPos": 37,
-              "uuid": "ba68ab48-7c38-df2f-e25e-35ca97132af6"
+              "charPos": 42,
+              "uuid": "e03645d2-a9eb-582f-ecf1-cdd0908f7011"
             }],
             "type": "list",
-            "charPos": 36,
-            "uuid": "c027725e-0d41-9765-af0b-6260b5687dc0"
+            "charPos": 41,
+            "uuid": "57983762-b035-4402-f556-01a9301d9aeb"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 44,
-              "uuid": "0cae0b7d-2133-3913-c14c-e65b124783e2"
+              "charPos": 49,
+              "uuid": "00bb74d6-b827-eae6-057d-ca567676625e"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "x",
                 "type": "identifier",
-                "charPos": 51,
-                "uuid": "ddf0221c-8d17-f344-4608-8a5df53a60fc"
+                "charPos": 56,
+                "uuid": "4c6f3fe8-fab7-d636-142d-34455933544b"
               }],
               "type": "list",
-              "charPos": 50,
-              "uuid": "7c230d52-4763-c234-bdfb-7947bac68671"
+              "charPos": 55,
+              "uuid": "18fb78ea-f76b-b33d-f647-6dd1998f33a8"
             }, {
               "src": "",
               "value": "x",
               "type": "identifier",
-              "charPos": 54,
-              "uuid": "d7bf08c0-7ddb-f882-767b-cf387aa8dd32"
+              "charPos": 59,
+              "uuid": "d2c43f68-e8ac-1359-e641-bb4034d8f854"
             }],
             "type": "list",
-            "charPos": 43,
-            "uuid": "e3444b09-f264-939c-57b7-e33eb0c5112a"
+            "charPos": 48,
+            "uuid": "f5139efe-0890-399e-f83f-f4ebc3450907"
           }],
           "type": "list",
-          "charPos": 24,
-          "uuid": "8dd7d123-960f-cdfb-4d22-a9473bbab47e"
+          "charPos": 29,
+          "uuid": "0c3d0e25-3544-7f1c-54af-602ae558b644"
         }, {
           "src": "",
           "value": [{
             "src": "",
             "value": "expr",
             "type": "identifier",
-            "charPos": 60,
-            "uuid": "8f16b411-2cab-2504-0c02-bf0b1c072991"
+            "charPos": 65,
+            "uuid": "3f2db47f-59f3-4a12-d87b-bb3a8a7a0fee"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "list-token",
               "type": "identifier",
-              "charPos": 65,
-              "uuid": "674992a1-2398-03a7-458d-71972c0420f8"
+              "charPos": 70,
+              "uuid": "3e8f1528-1866-65a6-180a-2c435d67586f"
             }],
             "type": "list",
-            "charPos": 64,
-            "uuid": "8a047127-6eba-8f0d-240c-ec837c34d769"
+            "charPos": 69,
+            "uuid": "125d5658-2edd-a8b7-9586-11fe58475d75"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 78,
-              "uuid": "659ae060-c533-eba4-4eb8-63e459a05e3b"
+              "charPos": 83,
+              "uuid": "362b3fc3-c6b1-d798-69f9-da4e3eabeb89"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "x",
                 "type": "identifier",
-                "charPos": 85,
-                "uuid": "12e8b88c-995b-f9df-8202-ad9ad7f098e2"
+                "charPos": 90,
+                "uuid": "cde54191-0af3-3874-fcdb-97a172be6b5b"
               }],
               "type": "list",
-              "charPos": 84,
-              "uuid": "b802b6c8-6c8f-f1bb-1e37-4823995a9484"
+              "charPos": 89,
+              "uuid": "bc1b7666-f794-fa2a-3e28-ea0370639ceb"
             }, {
               "src": "",
               "value": "x",
               "type": "identifier",
-              "charPos": 88,
-              "uuid": "b8848ac7-3e45-c5d4-0a39-30eb49cafe41"
+              "charPos": 93,
+              "uuid": "22abc503-82d3-1edd-d4f4-41558b1c8001"
             }],
             "type": "list",
-            "charPos": 77,
-            "uuid": "06aceefa-0d41-b9ad-19fb-feefebd76684"
+            "charPos": 82,
+            "uuid": "7364054c-2e67-1bb7-ff66-a97387adc8f4"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "atom-token",
               "type": "identifier",
-              "charPos": 93,
-              "uuid": "a6ef221a-f119-781f-59a6-0a60cdea7966"
+              "charPos": 98,
+              "uuid": "62a197f6-aad6-15c2-945c-ed844f889dc8"
             }],
             "type": "list",
-            "charPos": 92,
-            "uuid": "1a3a66df-3509-5c2b-6b11-c0a91c1230bd"
+            "charPos": 97,
+            "uuid": "6cb3ca21-fe15-22a1-2d15-268d2afdb151"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 106,
-              "uuid": "b8480711-e201-645f-58ff-132f30ae840b"
+              "charPos": 111,
+              "uuid": "f4a2ac5f-4e1f-3abe-4722-ecc5ae3726c5"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "x",
                 "type": "identifier",
-                "charPos": 113,
-                "uuid": "ca3c6e86-5937-7e0a-fcd7-910e6d936f12"
+                "charPos": 118,
+                "uuid": "445754d0-642d-70ab-4709-1add0c81acd2"
               }],
               "type": "list",
-              "charPos": 112,
-              "uuid": "cc1e0d37-efca-486e-753c-dbb506067706"
+              "charPos": 117,
+              "uuid": "b694f642-0e96-8c34-7a5b-9bac0d91a522"
             }, {
               "src": "",
               "value": "x",
               "type": "identifier",
-              "charPos": 116,
-              "uuid": "c3e1cf3c-a9ab-e27d-ae63-3ed987387b5a"
+              "charPos": 121,
+              "uuid": "b1ac8f73-464b-ddb1-bb64-19f558d42a3c"
             }],
             "type": "list",
-            "charPos": 105,
-            "uuid": "467ac5d2-7f9f-86be-fcc0-3f913bd791df"
+            "charPos": 110,
+            "uuid": "91d1f936-0151-fb5e-b6c0-4ba75e09f2ae"
           }],
           "type": "list",
-          "charPos": 59,
-          "uuid": "d93a6fc6-66d7-1922-34e7-ec2c9175bf3f"
+          "charPos": 64,
+          "uuid": "baa17b7f-fdea-3885-ed01-2bfa82a0ecd9"
         }, {
           "src": "",
           "value": [{
             "src": "",
             "value": "list-token",
             "type": "identifier",
-            "charPos": 123,
-            "uuid": "7e2723c3-d27f-3668-0a99-72b6111eae73"
+            "charPos": 128,
+            "uuid": "50695f69-cb3d-1c75-7030-5c7490b5c535"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "\\(",
               "type": "string",
-              "charPos": 134,
-              "uuid": "3688dd94-bc98-d645-2388-af637850c2a0"
+              "charPos": 139,
+              "uuid": "1283e7dc-cd9f-141b-3e2c-c470193ae8f7"
             }, {
               "src": "",
               "value": "expr-list",
               "type": "identifier",
-              "charPos": 144,
-              "uuid": "81d956c9-6417-63c2-04e5-d3d818288b78"
+              "charPos": 147,
+              "uuid": "ab12add3-91ba-a9be-0bbb-5b0db0d0f26c"
             }, {
               "src": "",
               "value": "\\)",
               "type": "string",
-              "charPos": 154,
-              "uuid": "c435f324-8772-a1e0-f383-a0d2c93a7f2a"
+              "charPos": 157,
+              "uuid": "e30c19d9-afb5-04e2-1573-aac27142e556"
             }],
             "type": "list",
-            "charPos": 133,
-            "uuid": "6c1f1f50-721f-8bef-9a17-a6612e12e582"
+            "charPos": 138,
+            "uuid": "62955047-03a1-ab44-3037-f0c0ffc37a05"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 168,
-              "uuid": "ba2bdc99-d2f5-dff6-b9bd-bad32bc35330"
+              "charPos": 169,
+              "uuid": "eadab77b-b976-272e-9cca-a593824cf235"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "_",
                 "type": "identifier",
-                "charPos": 175,
-                "uuid": "0649ba9d-1f30-b9f7-7ab6-b15dc5b875db"
+                "charPos": 176,
+                "uuid": "098a05ab-341a-80bb-80af-489cfe6fc1ab"
               }, {
                 "src": "",
                 "value": "x",
                 "type": "identifier",
-                "charPos": 176,
-                "uuid": "bc7fd8fe-e4ff-5b44-0e38-852c44d1dc71"
+                "charPos": 177,
+                "uuid": "3f799146-a18a-4d43-b13b-5e9b395ce78f"
               }, {
                 "src": "",
                 "value": "_",
                 "type": "identifier",
-                "charPos": 178,
-                "uuid": "b17c67ed-a6aa-35a3-cbe4-02b9f9964333"
+                "charPos": 179,
+                "uuid": "a9398c32-180a-36de-4e01-d9863109c3b6"
               }],
               "type": "list",
-              "charPos": 174,
-              "uuid": "eaaa67ee-fcd3-7141-b57c-0270de0e3eaf"
+              "charPos": 175,
+              "uuid": "b49e1286-cb45-3abe-6990-cc093ee8afd2"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "reverse-hack",
                 "type": "identifier",
-                "charPos": 182,
-                "uuid": "16943e15-713c-20dc-65af-943c35c107b6"
+                "charPos": 179,
+                "uuid": "a9398c32-181a-36de-4e01-d9863109c3b6"
               }, {
                 "src": "",
                 "value": "x",
                 "type": "identifier",
-                "charPos": 182,
-                "uuid": "16943e15-713c-20dc-65af-943c35c107b6"
+                "charPos": 183,
+                "uuid": "e9b205e5-66b1-87ad-b696-9dc767bd6c9e"
               }],
               "type": "list",
-              "charPos": 182,
-              "uuid": "16943e15-713c-20dc-64af-943c35c107b6"
+              "charPos": 183,
+              "uuid": "e9b105e5-66b1-87ad-b696-9dc767bd6c9e"
             }],
             "type": "list",
-            "charPos": 167,
-            "uuid": "576821ac-97f4-0c1b-bf68-b204ca606639"
+            "charPos": 168,
+            "uuid": "2e1cb720-7c6f-0413-1466-a8f31006b50f"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "\\(",
               "type": "string",
-              "charPos": 187,
-              "uuid": "ee323c9c-f490-868c-5b70-0f2472a004ea"
+              "charPos": 188,
+              "uuid": "e648cb97-043c-71cb-6864-52469acc624a"
             }, {
               "src": "",
               "value": "\\)",
               "type": "string",
-              "charPos": 197,
-              "uuid": "3815d860-48ad-c3dd-aaf4-62ba76f4f001"
+              "charPos": 196,
+              "uuid": "a262ad26-f700-51a2-a390-be553385b583"
             }],
             "type": "list",
-            "charPos": 186,
-            "uuid": "22fe7f43-0a6a-988f-aa4f-f1ea1d66c862"
+            "charPos": 187,
+            "uuid": "fc6ea925-1158-b259-fd03-ba5af44793c6"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 211,
-              "uuid": "1cb09557-fd46-2129-bb4c-4bc72d09e4b7"
+              "charPos": 208,
+              "uuid": "0ee52691-3c67-28de-5402-b01ade486362"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "_",
                 "type": "identifier",
-                "charPos": 218,
-                "uuid": "5d06a1d4-9aaf-7db7-3930-d53670ef1b5a"
+                "charPos": 215,
+                "uuid": "4256289e-ba24-dea4-b5ad-9b96106f9480"
               }, {
                 "src": "",
                 "value": "_",
                 "type": "identifier",
-                "charPos": 219,
-                "uuid": "7bbe272a-7217-5aa8-0393-d41b8695cc60"
+                "charPos": 216,
+                "uuid": "d3856a00-c631-ac37-4028-b09195f4576b"
               }],
               "type": "list",
-              "charPos": 217,
-              "uuid": "5d059512-1353-28ad-cda7-12f288901316"
+              "charPos": 214,
+              "uuid": "bd43c021-c83f-79ed-68ed-0561f28c81a2"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "quote",
                 "type": "identifier",
-                "charPos": 223,
-                "uuid": "3646ae4e-4872-7cf0-630e-8663ebcab1c4"
+                "charPos": 221,
+                "uuid": "07331e73-8965-afc6-d0e0-309b7e11dead"
               }, {
                 "src": "",
                 "value": [],
                 "type": "list",
-                "charPos": 224,
-                "uuid": "3b16985c-afc9-a848-2f4c-48f41ddbca2c"
+                "charPos": 226,
+                "uuid": "1f04a8fb-4662-3899-3b1b-d72c8d2a5f3e"
               }],
               "type": "list",
-              "charPos": 223,
-              "uuid": "ef1e2a82-11a5-be98-7a2a-2e7bbc764b7d"
+              "charPos": 220,
+              "uuid": "fb3b2d66-aaf2-ac79-6105-3d99686f4aa4"
             }],
             "type": "list",
-            "charPos": 210,
-            "uuid": "8727fec9-958c-d040-24a4-cfc3a1de7a8c"
+            "charPos": 207,
+            "uuid": "de760ca3-3d3e-481e-41bd-010d13ac7c32"
           }],
           "type": "list",
-          "charPos": 122,
-          "uuid": "c1df69c1-6c44-3a50-0c29-7fa913f6fad3"
+          "charPos": 127,
+          "uuid": "a638c7ae-8e7e-e513-c75d-56fb38b366d8"
         }, {
           "src": "",
           "value": [{
             "src": "",
             "value": "atom-token",
             "type": "identifier",
-            "charPos": 232,
-            "uuid": "188230a6-5212-3d1e-8d78-aa609c2b0b59"
+            "charPos": 236,
+            "uuid": "c4e295e4-f622-37d8-5287-6f5feb86f637"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "\\-?\\d*\\.?\\d*e?\\-?\\d+",
               "type": "string",
-              "charPos": 243,
-              "uuid": "17aed148-a373-e6fd-9bad-71e2e5f08c74"
+              "charPos": 247,
+              "uuid": "63b43018-55be-d8df-4168-c65ae8aaab9d"
             }],
             "type": "list",
-            "charPos": 242,
-            "uuid": "613545e5-c124-e8b2-dd9e-ade866a83c08"
+            "charPos": 246,
+            "uuid": "166db493-cf55-8633-d4f4-5dc3d660770b"
           }, {
             "src": "",
             "value": "parse-int",
             "type": "identifier",
-            "charPos": 256,
-            "uuid": "511a1bd0-e9b0-9146-d05e-645b3a6d0472"
-          }, {
-            "src": "",
-            "value": [{
-              "src": "",
-              "value": "[^ ()0-9]+[^ ()]*",
-              "type": "string",
-              "charPos": 267,
-              "uuid": "6f9a35a9-6352-27ff-04e5-c367219ac1ee"
-            }],
-            "type": "list",
-            "charPos": 266,
-            "uuid": "250f07ab-17ac-3604-543b-62360e608845"
-          }, {
-            "src": "",
-            "value": "parse-identifier",
-            "type": "identifier",
-            "charPos": 283,
-            "uuid": "71828736-fc6e-b076-5c26-2ce0a19a9884"
+            "charPos": 258,
+            "uuid": "eb782cc6-a1dc-c0d9-5fc5-39b41db137ee"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "\\\"([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*\\\"",
               "type": "string",
-              "charPos": 301,
-              "uuid": "a07801a8-d256-e568-3c8d-d1b31d92da6d"
+              "charPos": 269,
+              "uuid": "9585dcc5-e3c8-ccac-3892-730b804a7b72"
             }],
             "type": "list",
-            "charPos": 300,
-            "uuid": "cd2da14b-08ac-ee48-1552-d6ca8ca9e1b5"
+            "charPos": 268,
+            "uuid": "246f1115-1f0c-a3db-52a4-878c9ce4e742"
           }, {
             "src": "",
             "value": "parse-string",
             "type": "identifier",
-            "charPos": 313,
-            "uuid": "b0f816a7-9672-d737-ad05-f15bc6b39550"
+            "charPos": 283,
+            "uuid": "5a475678-1066-079e-7e67-7c5a2d72d532"
+          }, {
+            "src": "",
+            "value": [{
+              "src": "",
+              "value": "atom-token2",
+              "type": "identifier",
+              "charPos": 301,
+              "uuid": "3b18f6ea-24cd-2204-bfd8-882b79410564"
+            }],
+            "type": "list",
+            "charPos": 300,
+            "uuid": "53fc38ef-e7cd-b7bf-6dd7-2eefa2ea0975"
+          }, {
+            "src": "",
+            "value": [{
+              "src": "",
+              "value": "lambda",
+              "type": "identifier",
+              "charPos": 315,
+              "uuid": "ba544672-a43f-e073-1099-357e74b5b27d"
+            }, {
+              "src": "",
+              "value": [{
+                "src": "",
+                "value": "x",
+                "type": "identifier",
+                "charPos": 322,
+                "uuid": "a87180c8-3447-03f0-5f82-96f1dbd4969e"
+              }],
+              "type": "list",
+              "charPos": 321,
+              "uuid": "ffd142e8-7611-73b6-9caf-4d072e1dd3a7"
+            }, {
+              "src": "",
+              "value": "x",
+              "type": "identifier",
+              "charPos": 325,
+              "uuid": "285e35d4-2433-8eb9-f373-34ad3350fade"
+            }],
+            "type": "list",
+            "charPos": 314,
+            "uuid": "ca54e993-c6d3-60ec-641b-8044d0c2e2a5"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "true|false",
               "type": "string",
-              "charPos": 327,
-              "uuid": "60d35bb7-8d45-aae1-198b-2abd123d8ff8"
+              "charPos": 330,
+              "uuid": "93e294ae-9f73-1e51-58ac-2a3f7977c6c1"
             }],
             "type": "list",
-            "charPos": 326,
-            "uuid": "3f0afb60-5497-e80a-8791-262460c436b6"
+            "charPos": 329,
+            "uuid": "8d815872-53ea-22e1-99c4-b3d04daddfce"
           }, {
             "src": "",
             "value": "parse-boolean",
             "type": "identifier",
-            "charPos": 343,
-            "uuid": "b194ed33-0ec4-317a-a27c-c6e4faabae31"
+            "charPos": 341,
+            "uuid": "4e58f07e-dfb1-c637-732c-bb7049cf8483"
           }],
           "type": "list",
-          "charPos": 231,
-          "uuid": "d18f3a36-00db-501e-a120-11ca0d2068a5"
+          "charPos": 235,
+          "uuid": "077aaca0-eece-2001-4821-0cfc9020b152"
+        }, {
+          "src": "",
+          "value": [{
+            "src": "",
+            "value": "atom-token2",
+            "type": "identifier",
+            "charPos": 358,
+            "uuid": "a1136d7f-f2e2-473b-002c-2e81417a8b37"
+          }, {
+            "src": "",
+            "value": [{
+              "src": "",
+              "value": "[^ ()0-9]+[^ ()]*",
+              "type": "string",
+              "charPos": 370,
+              "uuid": "56db4edb-dbff-5743-0d50-b06299c5212c"
+            }],
+            "type": "list",
+            "charPos": 369,
+            "uuid": "eda56132-b0dd-87b3-7192-de11308c6140"
+          }, {
+            "src": "",
+            "value": "parse-identifier",
+            "type": "identifier",
+            "charPos": 380,
+            "uuid": "73364e54-bfca-ba58-5693-986eab156af5"
+          }],
+          "type": "list",
+          "charPos": 357,
+          "uuid": "d698e9c4-4541-c83e-11b1-3725d4c41363"
         }, {
           "src": "",
           "value": [{
             "src": "",
             "value": "expr-list",
             "type": "identifier",
-            "charPos": 360,
-            "uuid": "91364735-3eb9-9d15-4e47-37b99d077256"
+            "charPos": 396,
+            "uuid": "ab01fc82-3ae7-beba-e020-423801b965b6"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "expr-list",
               "type": "identifier",
-              "charPos": 370,
-              "uuid": "c7d67f32-8a76-e5b2-8493-685bdd9383df"
+              "charPos": 406,
+              "uuid": "a2f52b42-cf31-78f4-e9d8-ac1635c941b6"
             }, {
               "src": "",
               "value": "expr",
               "type": "identifier",
-              "charPos": 379,
-              "uuid": "e0c723c9-9435-369e-d4aa-ec12963d7d28"
+              "charPos": 415,
+              "uuid": "0f008414-3cb8-8b66-da88-3cc9507dd46f"
             }],
             "type": "list",
-            "charPos": 369,
-            "uuid": "d0273a36-0078-1394-e1b9-98e02e596a4d"
+            "charPos": 405,
+            "uuid": "78ad4451-a201-f539-210f-91e971369158"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 387,
-              "uuid": "28137765-f66c-8b40-994b-86896f0a974f"
+              "charPos": 423,
+              "uuid": "daca49b6-ac65-c5ad-6dc3-b22cb51a1e30"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "coll",
                 "type": "identifier",
-                "charPos": 394,
-                "uuid": "07a57e5e-027e-a8e8-045f-094a3b005c8e"
+                "charPos": 430,
+                "uuid": "6d7e9e05-6245-431f-6c5b-83914c1dc6a8"
               }, {
                 "src": "",
                 "value": "e",
                 "type": "identifier",
-                "charPos": 398,
-                "uuid": "a93f0c88-c100-f172-2014-8305b2f92109"
+                "charPos": 434,
+                "uuid": "6120b267-ecfa-6080-b832-ec08ce1c78f7"
               }],
               "type": "list",
-              "charPos": 393,
-              "uuid": "bc7e9bc4-ba13-5104-1ae9-5c682c17554e"
+              "charPos": 429,
+              "uuid": "4a7377b8-d58b-e4a9-b15d-e2de602f6c9c"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "cons",
                 "type": "identifier",
-                "charPos": 403,
-                "uuid": "bb09e6ad-9fca-2442-cc52-4135bafc5238"
+                "charPos": 439,
+                "uuid": "2f429519-f3be-d8a8-4b3e-843f21c58508"
               }, {
                 "src": "",
                 "value": "e",
                 "type": "identifier",
-                "charPos": 407,
-                "uuid": "d781f60c-3c71-223f-01b3-b656dd6b9823"
+                "charPos": 443,
+                "uuid": "62ba6c85-1a4f-05cd-9353-0142bee45e50"
               }, {
                 "src": "",
                 "value": "coll",
                 "type": "identifier",
-                "charPos": 409,
-                "uuid": "2df4a0b3-0b8e-f73a-1a19-50c2c68a2183"
+                "charPos": 445,
+                "uuid": "9ae4ffea-1d28-bd98-0f55-08af996ae9ef"
               }],
               "type": "list",
-              "charPos": 402,
-              "uuid": "d91bb4b0-ff5a-8661-89ee-7d3c5dba4460"
+              "charPos": 438,
+              "uuid": "bcd6c93b-cd4d-7c72-dd77-d55e9f51d581"
             }],
             "type": "list",
-            "charPos": 386,
-            "uuid": "e085f994-f35c-fe31-e201-a85cbdb53017"
+            "charPos": 422,
+            "uuid": "b7d6bc65-c3f9-7ed2-2026-5738d2e827ae"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "expr",
               "type": "identifier",
-              "charPos": 419,
-              "uuid": "255acee9-a864-ebe4-e24b-ff1f5793195a"
+              "charPos": 455,
+              "uuid": "e5a087ee-bb70-4f85-bcb7-36822bc74881"
             }],
             "type": "list",
-            "charPos": 418,
-            "uuid": "6ee96756-0977-b790-427a-1eece3b28afd"
+            "charPos": 454,
+            "uuid": "08e6f730-5912-75bd-5db7-6f06725c6a13"
           }, {
             "src": "",
             "value": [{
               "src": "",
               "value": "lambda",
               "type": "identifier",
-              "charPos": 426,
-              "uuid": "5bf9d5ea-ffd9-8017-9a45-4ae369fb4074"
+              "charPos": 462,
+              "uuid": "7f53a966-d0db-ceb4-42cd-faf49f38ff1a"
             }, {
               "src": "",
               "value": [{
                 "src": "",
                 "value": "args",
                 "type": "identifier",
-                "charPos": 433,
-                "uuid": "9462bf4f-f6c4-d4d9-0f21-c0bd835fa1d8"
+                "charPos": 469,
+                "uuid": "68080131-05ad-beaa-6a9b-650e5d58479d"
               }, {
                 "src": "",
                 "value": "...",
                 "type": "identifier",
-                "charPos": 437,
-                "uuid": "bef4f15e-9eec-13cf-48ab-00ed47d4d559"
+                "charPos": 473,
+                "uuid": "cd24112b-5aea-1145-62a9-9f5e4988f448"
               }],
               "type": "list",
-              "charPos": 432,
-              "uuid": "870013bb-c17e-9d91-8f89-4e37cd1fb2d6"
+              "charPos": 468,
+              "uuid": "e4f9bf2c-6be6-756c-1a17-a030fbcd6c27"
             }, {
               "src": "",
               "value": "args",
               "type": "identifier",
-              "charPos": 443,
-              "uuid": "1600aeb2-c289-3ced-315b-27dd9c8a0a43"
+              "charPos": 479,
+              "uuid": "bb2a2b40-48fe-dd0a-ca60-720f541fbeb3"
             }],
             "type": "list",
-            "charPos": 425,
-            "uuid": "98c44331-6f15-8b82-9c6b-9e5b1822d62d"
+            "charPos": 461,
+            "uuid": "79795bf0-428b-b305-5c74-a318bdbfeef0"
           }],
           "type": "list",
-          "charPos": 359,
-          "uuid": "840401a4-b0ca-333f-6fb5-8bdf328d6d11"
+          "charPos": 395,
+          "uuid": "2257a8cf-2c64-9969-ad54-9c4c2057da62"
         }],
         "type": "list",
-        "charPos": 23,
-        "uuid": "82831e1b-7582-1224-c3cc-eea5dec34b71"
+        "charPos": 28,
+        "uuid": "0dac0ee1-ee71-5ea5-0a7f-569ce1eb6ccd"
       }],
       "type": "list",
       "charPos": 22,
-      "uuid": "e5dba8ec-5ca4-d4f1-7f0a-8ce131a17ff0"
+      "uuid": "a5f13b9d-b91d-88dc-2975-f3eda93da951"
     }],
     "type": "list",
     "charPos": 12,
-    "uuid": "34e44036-69c1-4898-de68-14a80d6004ef"
+    "uuid": "03b4e645-d0aa-6465-face-3422f79c1b5f"
   }],
   "type": "list",
   "charPos": 0,
-  "uuid": "53419ece-a76b-5daa-e91b-a55e0285a0a5"
+  "uuid": "1e1a47d2-5084-c47a-de92-c4c9c1993be1"
 }
