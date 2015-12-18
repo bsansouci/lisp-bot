@@ -1,0 +1,16 @@
+(define core
+  (lambda () (quote
+    ((start-token (expr) (lambda (x) x))
+     (expr (open-tag expr-list close-tag)
+              (lambda (t1 coll t2) (if (equal? (car t1) t2)
+                `(apply ~(parse-identifier (car t1)) (concat (cdr (quote ~t1)) (reverse-hack (quote ~coll))))
+                error))
+           ("<" tag "/>")
+              (lambda (_ t _) ~(parse-identifier t)))
+     (open-tag ("<" tag attributes ">") (lambda (_ name attr _) `(~name ~attr)))
+     (close-tag ("</" tag ">") (lambda (_ name _) name))
+     (attributes (tag "=" "\"" num "\"") (lambda (lhs _ _ rhs _) `(~lhs ~rhs)))
+     (tag ("[^ <>/\\\"()0-9]+[^ <>/\\\"()]*") (lambda (x) x))
+     (num ("[0-9]+") parse-int)
+     (expr-list (expr-list expr) (lambda (coll e) (cons e coll))
+                (expr)               (lambda (args ...) args))))))

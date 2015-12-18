@@ -498,7 +498,7 @@ var macroTable = {
 
     var bool = evaluate(args[0]);
 
-    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
+    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"' "+bool.value);
     if(bool.value) {
       return evaluate(args[1]);
     }
@@ -747,9 +747,11 @@ var symbolTable = {
     var func = evaluate(args[0]);
     var arr = args[1];
     if(func.type !== "function") throwError("First argument should be a function.", func);
+
     if(!isList(arr)) throwError("Second argument should be a list.", func);
-    var quotedArr = arr.value.map(quoteNode);
-    return evalLambda(func, quotedArr, charPos, args[0].value);
+    var funcArgs = arr.value;
+
+    return evalLambda(func, funcArgs, charPos, args[0].value);
   },
 };
 

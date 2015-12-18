@@ -25,12 +25,10 @@ function makeRules(ast) {
     for (var i = 1; i < list.length; i += 2) {
       var tokenList = list[i].value;
       var rhs = [];
-      if (tokenList.length === 0) throw new Error(
-        "Can't handle empty for now...");
+      if (tokenList.length === 0) throw new Error("Can't handle empty for now...");
 
       tokenList.forEach(function(elem) {
-        if (elem.type === 'string' && elem.value.length === 0) throw new Error(
-          "Can you not?");
+        if (elem.type === 'string' && elem.value.length === 0) throw new Error("Can you not?");
 
         if (elem.type === 'string') {
           var regex = new RegExp(elem.value);
@@ -50,10 +48,12 @@ function makeRules(ast) {
           rhs.push(elem.value);
         }
       });
+      var lambda = list[i + 1];
+      lambda.isMacro = true;
       table.push({
         lhs: lhs,
         rhs: rhs,
-        lambda: list[i + 1],
+        lambda: lambda,
       });
     }
   });
@@ -407,14 +407,17 @@ function parse(table, regexTable, rules, inputString) {
         stateStack = stateStack.slice(0, stateStack.length - rule.rhs.length);
 
         var evaledAst = lisp.evaluate(rule.lambda);
+        evaledAst.isMacro = true;
+
         var result = {
           key: rule.lhs,
-          value: lisp.evalLambda(evaledAst, argList.map(kvp => lisp.quoteNode(kvp.value)), -1),
+          value: lisp.evalLambda(evaledAst, argList.map(kvp => kvp.value), -1),
         };
         tokenStack.push(result);
 
-        if (rule.lhs === "start-token")  return { success: true, value: result.value };
-
+        if (rule.lhs === "start-token") {
+          return { success: true, value: result.value };
+        }
         var gotoState = stateStack[stateStack.length - 1];
         stateStack.push(table[gotoState].actions[rule.lhs].value);
         break;
