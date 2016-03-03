@@ -1,0 +1,187 @@
+(; (define hashmap-access
+  (lambda (read)
+    (let (map (read ".")
+          field (read))
+      `(~map (quote ~field)))))
+
+(register-reader-macro hashmap-access))
+
+(; (define a (assoc (hashmap) 'field 10))
+(define f (lambda (bla) (+ bla 10)))
+(f a.field))
+
+(; v1: uses inner lambda to loop. Has access to character stream, and uses
+ ;  helpers like read-until and skip-many
+)
+
+(;
+    (define hashset-reader-macro
+      (lambda (input-stream no-match)
+        (lambda (state char-cursor)
+              (cond
+                ((end-of-stream? char-cursor) (no-match))
+                ((and (equal? (char-cursor) "#") (equal? (peak-char input-stream) "{"))
+                  (recur state (move-by 2 char-cursor)))
+                ((equal? (char-cursor) "}") `(hashset ~@(reverse state)))
+                (true
+                  (let (ret (read-until char-cursor " "))
+                    (cond
+                      ((not (car ret)) (no-match))
+                      (true (recur (cons (second ret) state) (skip-many " " char-cursor))))))))
+           '()
+           (cursor input-stream)))
+
+    (; v2: uses loop proposal
+    )
+    (define hashset-reader-macro2
+      (lambda (input-stream no-match)
+        (loop (state '()
+               char-cursor (cursor input-stream))
+              (cond
+                ((end-of-stream? char-cursor) (no-match))
+                ((and (equal? (char-cursor) "#") (equal? (peak-char input-stream) "{"))
+                  (recur state (move-by 2 char-cursor)))
+                ((equal? (char-cursor) "}") `(hashset ~@(reverse state)))
+                (true
+                  (let (ret (read-until char-cursor " "))
+                    (cond
+                      ((not (car ret)) (no-match))
+                      (true (recur (cons (second ret) state) (skip-many " " char-cursor))))))))))
+
+    (; v3: uses regexes to move along the char-cursor
+    )
+    (define hashset-reader-macro3
+      (lambda (input-stream no-match)
+        (loop (state '()
+               char-cursor input-stream)
+              (cond
+                ((end-of-stream? char-cursor) (no-match))
+                ((match-start "#\{" char-cursor) (recur state (move-by 2 char-cursor)))
+                ((equal? (char-cursor) "}") `(hashset ~@(reverse state)))
+                (true
+                  (let (ret (read-until " |}" char-cursor))
+                    (cond
+                      ((not (car ret)) (no-match))
+                      (true (recur (cons (second ret) state)
+                                   (discard-chars " *|}" char-cursor))))))))))
+
+)
+
+
+
+(; v4: more concrete proposal using no new DS just 3 new functions
+)
+(;
+  (define-reader-macro hashset-reader-macro4
+    (lambda (input-stream no-match read-until discard-chars match-start)
+      ((lambda (state char-cursor)
+            (cond
+              ((nil? char-cursor) (no-match))
+              ((match-start "#\{" char-cursor) (recur state (cdr (cdr char-cursor))))
+              ((equal? (car char-cursor) "\}") `(hashmap ~@(reverse state)))
+              (true
+                (let (ret (read-until " |\}" char-cursor))
+                  (cond
+                    ((not (car ret)) (no-match))
+                    (true (recur (cons (second ret) state)
+                                 (discard-chars " *|\}" char-cursor))))))))
+       '()
+       input-stream)))
+)
+
+(define read-hashset-inner (lambda (str car cdr)
+    (cond
+        ((= (car str) "}") nil)
+        ((= (car str) " ") (recur (cdr str)))
+        (true
+            (let (res (read str " }"))
+                (cons (second res) (recur (car res))))))))
+
+(define-reader-macro somethingsomething (lambda (str)
+    (if (and (= (car str) "#" ) (= (car str 2) "{"))
+        (true `(hash-set ~@(reverse (read-hashset-inner str))))
+        (false nil))))
+
+(define dot-operator-internal
+  (lambda ()
+    '((start-token  dotted-ident             (lambda (v) v))
+      (dotted-ident (ident DOT dotted-ident) (lambda (name fields) `(~name ~fields))
+                    (ident)                  make-identifier-node)
+      (ident        (regex /[a-z_0-9]*/i)    (lambda (v) v))
+      (DOT          (regex /\./)             (lambda (v) nil)))))
+
+(define dot-operator-internal
+  (lambda (token-map)
+    (let (expr-token (token-map expression))
+      '((start-token         (expr-token DOT dotted-ident) (lambda (expr fields) `(~expr ~fields)))
+        (dotted-ident        (expr-token DOT dotted-ident) (lambda (expr fields) `(~expr ~fields))
+                             expr-token                    (lambda (v) v))
+        (DOT                 (regex /\./)                  (lambda (v) nil))))))
+
+(define-token (lambda (token-map)
+    (let (new-token-map (assoc token-map dot-operator '(dot-operator-internal)))
+      (assoc new-token-map expression (cons dot-operator (new-token-map expression))))))
+
+(define hash-set-token
+  (lambda (token-map)
+    (let (expr-token (token-map expression))
+      '((start-token (HASH LBRACE expr-list RBRACE) make-into-hashset)
+        (expr-list   (expr-token expr-list)         (lambda (token coll) (cons token))
+                     (expr-token)                   (lambda (token)      (list token)))
+        (HASH   (regex "#") ignore)
+        (LBRACE (regex "{") ignore)
+        (RBRACE (regex "}") ignore)))))
+
+(define-token (lambda (token-map)
+    (let (new-token-map (assoc token-map hash-set-token '(hash-set-token)))
+      (assoc new-token-map expression (cons hash-set-token (new-token-map expression))))))
+
+(define core
+  (lambda ()
+    '((start-token (expr) (lambda (x) x))
+      (expr (list-token) (lambda (x) x)
+            (atom-token) (lambda (x) x))
+      (list-token ("(\\s*" expr-list "\\s*)") (lambda (_ x _) x))
+      (atom-token ("\\-?\\d*\\.?\\d*e?\\-?\\d+") parse-int
+                  ("[^ ()0-9]+[^ ()]*") parse-identifier
+                  ("\\\"([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*\\\"") parse-string
+                  ("true|false") parse-boolean)
+      (expr-list (expr "\\s+" expr-list) (lambda (e _ coll) (cons e coll))
+                 () (lambda () '())))))
+
+
+(define core
+  (lambda ()
+    '((start-token (expr) (lambda (x) x))
+      (expr (list-token) (lambda (x) x)
+            (atom-token) (lambda (x) x))
+      (list-token ("\\(" expr-list "\\)") (lambda (_ x _) x)
+                  ("\\(" "\\)") (lambda (_ _) '()))
+      (atom-token ("\\-?\\d*\\.?\\d*e?\\-?\\d+") parse-int
+                  ("[^ ()0-9]+[^ ()]*") parse-identifier
+                  ("\\\"([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*\\\"") parse-string
+                  ("true|false") parse-boolean)
+      (expr-list (expr-list expr) (lambda (coll e) (cons e coll))
+                 (expr) (lambda (args ...) args)))))
+
+(define core
+  (lambda () (quote
+    ((start-token (expr) (lambda (x) x))
+     (expr (list-token) (lambda (x) x)
+           (atom-token) (lambda (x) x))
+     (list-token ("\\(" expr-list "\\)") (lambda (_ x _) (reverse-hack x))
+                 ("\\(" "\\)")           (lambda (_ _)   (quote ())))
+     (atom-token ("\"" "([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*" "\"") (lambda (_ x _) (parse-string x))
+                 ("\\-?\\d*\\.?\\d*e?\\-?\\d+")                                   parse-int
+                 ("true|false")                                                   parse-boolean
+                 (atom-token2)                                                    (lambda (x) x))
+     (atom-token2 ("[^ \"()0-9]+[^ \"()]*") parse-identifier)
+     (expr-list (expr-list expr) (lambda (coll e) (cons e coll))
+                (expr)           (lambda (args ...) args))))))
+
+(define bla
+  (lambda ()
+    '((start-token (A) ())
+      (A (A "+" B) ())
+      (A ("a") ())
+      (B ("b") ()))))

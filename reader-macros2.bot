@@ -1,0 +1,13 @@
+(define read-hashset-inner
+  (lambda (coll read)
+    (cond
+      ((equal? (car coll) "}") nil)
+      ((equal? (car coll) " ") (read-hashset-inner (cdr coll) read))
+      (true
+        (let (res (read coll " |}"))
+            (cons (second res) (read-hashset-inner (car res) read)))))))
+
+(define-reader-macro somethingsomething (lambda (coll read)
+    (if (and (equal? (car coll) "#" ) (equal? (car (cdr coll)) "{"))
+        `(true (hashset ~@(reverse (read-hashset-inner (cdr (cdr coll)) read))))
+        `(false nil))))
