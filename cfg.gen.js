@@ -723,7 +723,7 @@ module.exports = {
             "src": "",
             "value": [{
               "src": "",
-              "value": "[^ \"()0-9]+[^ \"()]*",
+              "value": "(?!true|false)[^ \"()0-9~'`]+[^ \"()]*",
               "type": "string",
               "charPos": 564,
               "uuid": "c4e7fc2b-52a5-e646-2cd0-60ba7840461c"

@@ -5,70 +5,19 @@ var fs = require("fs");
 var sourceString = "";
 var LOADING = false;
 
-function parse(str) {
-  sourceString = str;
-  return parseHelper(str, 0);
-}
+function makeParser(ruleList) {
+  const parser = require('./parser');
+  const rules = parser.makeRules(ruleList);
+  const ruleTable = rules[0];
+  const regexTable = rules[1];
+  const table = parser.makeTable(ruleTable);
 
-function parseHelper(str, charPos) {
-  if(str.charAt(0) === "'") return makeArr(charPos, new Node("quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
+  return str => {
+    const parsedAST = parser.parse(table, regexTable, ruleTable, str);
+    if (!parsedAST.success) console.error(parsedAST);
 
-  if(str.charAt(0) === "`") return makeArr(charPos, new Node("syntax-quote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
-
-  if(str.charAt(0) === "~" && str.charAt(1) === "@") return makeArr(charPos, new Node("unquote-splice", "identifier", charPos), parseHelper(str.substring(2), charPos + 2));
-
-  if(str.charAt(0) === "~") return makeArr(charPos, new Node("unquote", "identifier", charPos), parseHelper(str.substring(1), charPos + 1));
-
-  var rightParen = str.charAt(str.length - 1) === ")";
-  var leftParen = str.charAt(0) === "(";
-
-  if(!leftParen && rightParen) throw new Error("First char isn't an open paren. str: " + str);
-  if(!rightParen && leftParen) throw new Error("Last char isn't a close paren. str: " + str);
-
-  if(!rightParen && !leftParen) {
-    // Number
-    if(!isNaN(str)) {
-      return new Node(parseFloat(str), "number", charPos);
-    }
-
-    // Bool
-    if(str === "false" || str === "true") {
-      return new Node(str === "true", "boolean", charPos);
-    }
-
-    // Strings
-    if(str.charAt(0) === "\"" && str.charAt(str.length - 1) === "\"") {
-      return new Node(str.substring(1, str.length - 1)
-        .replace(/\\(.)/g, (match, cap) =>
-          ( cap === "n" ? "\n" : cap))
-        , "string", charPos);
-    }
-
-    return new Node(str, "identifier", charPos);
-  }
-
-  str = str.substring(1, str.length - 1);
-  var list = makeArr(charPos);
-  var arr = str.split('');
-  var matchingParen = 0;
-  var insideString = false;
-  var tmpString = "";
-  for (var i = 0; i < str.length; i++) {
-    if(arr[i] === "\"") insideString = !insideString;
-    if(arr[i] === "(") matchingParen++;
-    if(arr[i] === ")") matchingParen--;
-    if(arr[i] === " " && !insideString && matchingParen === 0 && tmpString.trim().length !== 0) {
-      list.value.push(parseHelper(tmpString.trim(), 1 + charPos + i - tmpString.length));
-      tmpString = "";
-    }
-
-    tmpString += arr[i];
-  }
-  if(tmpString.trim().length !== 0) {
-    list.value.push(parseHelper(tmpString.trim(), 1 + charPos + str.length - tmpString.length));
-  }
-
-  return list;
+    return parsedAST.value;
+  };
 }
 
 function evaluate(ast) {
@@ -498,7 +447,7 @@ var macroTable = {
 
     var bool = evaluate(args[0]);
 
-    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"'"+bool.value);
+    if(bool.type !== "boolean") throw new Error("If first argument has to evaluate to a boolean, not a '"+bool.type+"' "+bool.value);
     if(bool.value) {
       return evaluate(args[1]);
     }
@@ -544,7 +493,7 @@ var macroTable = {
         //throwError(e.toString(), charPos);
     }
     LOADING--;
-    //console.log("--------------------");
+    console.log("--------------------");
     return makeArr(charPos);
   },
   "let" : function(args, charPos) {
@@ -571,6 +520,28 @@ var macroTable = {
 };
 
 var symbolTable = {
+  "edit-parser": function(args, charPos) {
+    globalRuleList = evalLambda(args[0], [quoteNode(globalRuleList), new Node(function(args, charPos) {
+      var ruleList = args[0];
+      var quotedThingy = args[1];
+      var nameOfRuleToExtend = quotedThingy.value[0].value;
+      // Check if rule exists
+      if (!ruleList.value.some(v => v.value[0].value === nameOfRuleToExtend)) {
+        throwError("Could not find rule named `" + nameOfRuleToExtend + "`.", quotedThingy);
+      }
+
+      return new Node(ruleList.value.map(v => {
+        if (v.value[0].value === nameOfRuleToExtend) {
+          return new Node(v.value.concat(quotedThingy.value.slice(1)), 'list', v.charPos);
+        }
+        return v;
+      }), 'list', charPos);
+    }, "function", charPos)]);
+
+    globalParser = makeParser(globalRuleList);
+
+    return globalRuleList;
+  },
   "reverse-hack": function(args, charPos) {
     return new Node(args[0].value.reverse(), "list", charPos);
    },
@@ -747,9 +718,11 @@ var symbolTable = {
     var func = evaluate(args[0]);
     var arr = args[1];
     if(func.type !== "function") throwError("First argument should be a function.", func);
+
     if(!isList(arr)) throwError("Second argument should be a list.", func);
-    var quotedArr = arr.value.map(quoteNode);
-    return evalLambda(func, quotedArr, charPos, args[0].value);
+    var funcArgs = arr.value;
+
+    return evalLambda(func, funcArgs, charPos, args[0].value);
   },
 };
 
@@ -903,8 +876,9 @@ function findAllIdentifiers(ast) {
   return [];
 }
 
+var parse = v => globalParser(v);
+
 module.exports = {
-  parse: parse,
   evaluate: evaluate,
   prettyPrint: prettyPrint,
   addFunction: addFunction,
@@ -913,4 +887,8 @@ module.exports = {
   evalLambda: evalLambda,
   toLispData: toLispData,
   quoteNode: quoteNode,
+  parse: parse,
 };
+
+var globalRuleList = require('./cfg.gen').value[2].value[2].value[1];
+var globalParser = makeParser(globalRuleList);

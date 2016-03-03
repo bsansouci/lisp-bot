@@ -1,5 +1,4 @@
-(define-macro ; "Always returns nil." (lambda (x ...) ())
-  )
+(define-macro ; "Always returns nil." (lambda (x ...) ()))
 
 (define nil "Equivalent to an empty list." '())
 

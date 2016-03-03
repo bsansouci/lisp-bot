@@ -1,0 +1,11 @@
+(edit-parser (lambda (rule-list add-to)
+  (add-to rule-list (quote (expr ("'" expr) (lambda (_ e) (syntax-quote (quote (unquote e)))))))))
+
+(edit-parser (lambda (rule-list add-to)
+  (add-to rule-list '(expr ("`" expr) (lambda (_ e) (syntax-quote (syntax-quote (unquote e))))))))
+
+(edit-parser (lambda (rule-list add-to)
+  (add-to rule-list '(expr ("~" expr) (lambda (_ e) `((unquote 'unquote) (unquote e)))))))
+
+(edit-parser (lambda (rule-list add-to)
+  (add-to rule-list '(expr ("~@" expr) (lambda (_ e) `(unquote-splice ~e))))))
