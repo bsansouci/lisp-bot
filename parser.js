@@ -192,6 +192,15 @@ function pprintTable(regexTable, table) {
   return table.map(pprintRow.bind(null, regexTable)).join("\n");
 }
 
+function find(list, pred){
+  for (var i = 0; i < list.length; i++) {
+    value = list[i];
+    if (pred.call(null, value, i, list)) {
+      return value;
+    }
+  }
+}
+
 function makeTable(rules) {
   var startRule = rules.filter(function(v) {
     return v.lhs === 'start-token';
@@ -251,9 +260,10 @@ function makeTable(rules) {
             item: item,
           };
         } else {
-          var maybePreviousState = table.filter(v => v.init != null &&
-            compareItemSets(table[v.init.state].items, curState.items) && v
-            .init.token === curToken)[0];
+          var maybePreviousState = find(table, v => v.init != null
+            && v.init.token === curToken
+            && compareItemSets(table[v.init.state].items, curState.items));
+
           if (curToken.length === 0) throw new Error("wtf");
           if (!isTerminal(rules, curToken)) {
             if (maybePreviousState != null) {
@@ -303,7 +313,7 @@ function makeTable(rules) {
 }
 
 function compareItemSets(items1, items2) {
-  return subset(items1, items2) && subset(items2, items1);
+  return items1 === items2 || (items1.length === items2.length && subset(items1, items2) && subset(items2, items1));
 }
 
 function subset(items1, items2) {
