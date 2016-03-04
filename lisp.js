@@ -12,12 +12,7 @@ function makeParser(ruleList) {
   const regexTable = rules[1];
   const table = parser.makeTable(ruleTable);
 
-  return str => {
-    const parsedAST = parser.parse(table, regexTable, ruleTable, str);
-    if (!parsedAST.success) console.error(parsedAST);
-
-    return parsedAST.value;
-  };
+  return str => parser.parse(table, regexTable, ruleTable, str);
 }
 
 function evaluate(ast) {
