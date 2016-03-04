@@ -25,11 +25,7 @@ stdin.addListener('data', function(d) {
   }
   if (str.length > 0) {
     // try {
-    const maybeAST = lisp.parse(str);
-    if (!maybeAST.success) {
-      throw maybeAST;
-    }
-    const AST = maybeAST.value;
+    const AST = lisp.parse(str);
     const output = lisp.evaluate(AST);
     const pretty = lisp.prettyPrint(output);
     console.log(pretty);

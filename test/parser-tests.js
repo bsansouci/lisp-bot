@@ -4,12 +4,7 @@ var lisp = require("../lisp");
 describe('Parse tests:', () => {
   var parseAndPprint = null
   before(() => {
-    parseAndPprint = str => {
-      var parsedAST = lisp.parse(str);
-      if (!parsedAST.success) throw parsedAST;
-
-      return lisp.prettyPrint(parsedAST.value);
-    };
+    parseAndPprint = str => lisp.prettyPrint(lisp.parse(str));
   });
 
   it('should parse simple lists', () => {
