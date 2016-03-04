@@ -205,7 +205,7 @@ function prettyPrint(node, optionalRefMapping, cycles) {
         return "[Ref: " + prettyPrint(optionalRefMapping[node.value], optionalRefMapping, cycles) + "]";
       }
     case "string":
-      return "\"" + node.value + "\"";
+      return "\"" + node.value.replace('"','\\"') + "\"";
     case "list":
       if(node.value == null || node.value.length === 0) return "()";
       return node.value.reduce(function(acc, v, i) {
