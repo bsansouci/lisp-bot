@@ -28,8 +28,12 @@ function makeRules(ast) {
       if (tokenList.length === 0) throw new Error("Can't handle empty for now...");
 
       tokenList.forEach(function(elem) {
-        if (elem.type === 'string' && elem.value.length === 0) throw new Error("Can you not?");
-
+        if (elem.type === 'string') {
+          var maybeMatchOnEmpty = ''.match(elem.value);
+          if (maybeMatchOnEmpty && maybeMatchOnEmpty.index === 0) {
+            throw new Error("Can you not match on emtpy string plz with `" + elem.value + "`");
+          }
+        }
         if (elem.type === 'string') {
           var regex = new RegExp(elem.value);
           var id = uuid();
