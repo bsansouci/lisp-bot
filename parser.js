@@ -27,7 +27,7 @@ function makeRules(ast) {
       var rhs = [];
       if (tokenList.length === 0) throw new Error("Can't handle empty for now...");
 
-      tokenList.forEach(function(elem) {
+      tokenList.forEach(function(elem, j) {
         if (elem.type === 'list' || elem.type === 'string') {
           var string = elem, priority = 0;
           if (elem.type === 'list'){
@@ -56,6 +56,8 @@ function makeRules(ast) {
           rhs.push(id);
         } else if (elem.type === 'identifier'){
           rhs.push(elem.value);
+        } else {
+          throw new Error("Unexpected AST node of type `" + elem.type + "` found at position inside rule #" + i + " at position " + j);
         }
       });
       var lambda = list[i + 1];
