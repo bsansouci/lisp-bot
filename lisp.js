@@ -11,7 +11,6 @@ function makeParser(ruleList) {
   const ruleTable = rules[0];
   const regexTable = rules[1];
   const table = parser.makeTable(ruleTable);
-
   return str => {
     const maybeAST = parser.parse(table, regexTable, ruleTable, str);
     if (!maybeAST.success) {
@@ -94,13 +93,13 @@ function evalLambda(func, args, charPos, funcName) {
   var length = argNames.length - (variadicArgs ? 1 : 0);
   for (var i = 0; i < length; i++) {
     var node = args[i] ? args[i] : makeArr(charPos);
-
     uuidToNodeMap[node.uuid] = node;
     map[argNames[i].value] = node.uuid;
   }
 
   if(variadicArgs) {
     var node = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
+
     uuidToNodeMap[node.uuid] = node;
     map[argNames[argNames.length - 2].value] = node.uuid;
   }
@@ -314,7 +313,6 @@ var macroTable = {
       res.scope[name.value] = res.uuid;
     }
 
-
     uuidToNodeMap[res.uuid] = res;
     localStack[0][name.value] = res.uuid;
     localStack[1][name.value] = res.uuid;
@@ -374,7 +372,8 @@ var macroTable = {
         argNames: argNames
       });
     lambdaNode.scope.recur = lambdaNode.uuid;
-    uuidToNodeMap[lambdaNode.uuid] = lambdaNode;
+
+    // uuidToNodeMap[lambdaNode.uuid] = lambdaNode;
     return lambdaNode;
   },
   "quote": function(args, charPos) {
@@ -556,7 +555,7 @@ var symbolTable = {
   },
   "parse-string": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
-    return new Node(args[0].value, "string", charPos);
+    return new Node(args[0].value.substring(1, args[0].value.length - 1), "string", charPos);
   },
   "parse-boolean": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
@@ -806,44 +805,38 @@ function addMacro(name, func, docs) {
   }
 }
 
-function unmerge(mergedThing, previousOne1) {
-  return Object.keys(mergedThing).reduce(function(obj, key) {
-    if(previousOne1.hasOwnProperty(key) && areStructurallyEqual(mergedThing[key], previousOne1[key])) {
-      return obj;
-    }
-
-    obj[key] = mergedThing[key];
-    return obj;
-  }, {});
-}
-
-function evaluateWith(toEval, context, macroContext, savedUuidToNodeMap) {
+function evaluateWith(toEval, context, macroContext, uuidContext, ruleList) {
   var savedLocalStack0 = localStack[0];
   var savedMacroStack0 = macroStack[0];
+  var savedGlobalRuleList = globalRuleList;
+  var savedGlobalParser = globalParser;
+  var savedUuidToNodeMap = uuidToNodeMap;
+  if (ruleList) {
+    globalRuleList = ruleList;
+  }
 
-  var mergedStackFrame = Object.assign({}, savedLocalStack0, context);
-  var mergedMacroFrame = Object.assign({}, savedMacroStack0, macroContext);
-
-  var prevUuidMapping = uuidToNodeMap;
-  uuidToNodeMap = Object.assign({}, uuidToNodeMap, savedUuidToNodeMap);
-
-  localStack = [mergedStackFrame];
-  macroStack = [mergedMacroFrame];
+  localStack = [context];
+  macroStack = [macroContext];
+  uuidToNodeMap = uuidContext;
   var res = evaluate(toEval);
 
-  var nextUuidToNodeMap = unmerge(uuidToNodeMap, prevUuidMapping);
-  var newStackFrame = unmerge(localStack[0], savedLocalStack0);
-  var newMacros = unmerge(macroStack[0], savedMacroStack0);
+  var newUuidToNodeMap = uuidToNodeMap;
+  var newStackFrame = localStack[0];
+  var newMacros = macroStack[0];
+  var newRuleList = globalRuleList;
 
-  uuidToNodeMap = prevUuidMapping;
+  uuidToNodeMap = savedUuidToNodeMap;
   localStack = [savedLocalStack0];
   macroStack = [savedMacroStack0];
+  globalParser = savedGlobalParser;
+  globalRuleList = savedGlobalRuleList;
 
   return {
     res: res,
     newStackFrame: newStackFrame,
     newMacros: newMacros,
-    newUuidToNodeMap: nextUuidToNodeMap,
+    newUuidToNodeMap: newUuidToNodeMap,
+    newRuleList: newRuleList,
   };
 }
 
@@ -877,7 +870,16 @@ function findAllIdentifiers(ast) {
   return [];
 }
 
-var parse = v => globalParser(v);
+var parse = str => globalParser(str);
+
+function parseWith(str, ruleList) {
+  if (ruleList && !areStructurallyEqual(ruleList, globalRuleList)) {
+    var parser = makeParser(ruleList);
+    return parser(str);
+  }
+
+  return globalParser(str);
+}
 
 module.exports = {
   evaluate: evaluate,
@@ -889,6 +891,7 @@ module.exports = {
   toLispData: toLispData,
   quoteNode: quoteNode,
   parse: parse,
+  parseWith: parseWith,
 };
 
 var globalRuleList = require('./cfg.gen').value[2].value[2].value[1];
