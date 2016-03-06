@@ -28,14 +28,19 @@ function makeRules(ast) {
       if (tokenList.length === 0) throw new Error("Can't handle empty for now...");
 
       tokenList.forEach(function(elem) {
-        if (elem.type === 'string') {
-          var maybeMatchOnEmpty = ''.match(elem.value);
-          if (maybeMatchOnEmpty && maybeMatchOnEmpty.index === 0) {
-            throw new Error("Can you not match on emtpy string plz with `" + elem.value + "`");
+        if (elem.type === 'list' || elem.type === 'string') {
+          var string = elem, priority = 0;
+          if (elem.type === 'list'){
+            var string = elem.value[0];
+            priority = elem.value[1] ? elem.value[1].value : 0;
           }
-        }
-        if (elem.type === 'string') {
-          var regex = new RegExp(elem.value);
+
+          var maybeMatchOnEmpty = ''.match(string.value);
+          if (maybeMatchOnEmpty && maybeMatchOnEmpty.index === 0) {
+            throw new Error("Can you not match on emtpy string plz with `" + string.value + "`");
+          }
+
+          var regex = new RegExp(string.value);
           var id = uuid();
           var maybeRegex = regexTable.filter(r => r.rhs.toString() === regex.toString())[0];
           if (maybeRegex) {
@@ -44,11 +49,12 @@ function makeRules(ast) {
             regexTable.push({
               lhs: id,
               rhs: regex,
+              priority: priority,
               lambda: null,
             });
           }
           rhs.push(id);
-        } else {
+        } else if (elem.type === 'identifier'){
           rhs.push(elem.value);
         }
       });
@@ -374,10 +380,10 @@ function findMatch(inputStream, tokens, regexTable) {
   });
 
   var maybeDuplicates = matches.filter(match => match.value.length === longestMatch.value.length);
-  // We shouldn't throw in the case of our own cfg:
-  // "true" matches identifier and boolean, and the matches are of the same
-  // length, but boolean is defined first so that's the one that should be used.
-  if (maybeDuplicates.length > 1) throw new Error("Matched two things at " + inputStream.str + " with " + JSON.stringify(maybeDuplicates.map(v => getRegexLhs(regexTable, v.key))));
+  maybeDuplicates = maybeDuplicates.sort((i1, i2) => regexTable[i1.key].priority - regexTable[i2.key].priority);
+  if (maybeDuplicates.length > 1 && regexTable[maybeDuplicates[0]].priority === regexTable[maybeDuplicates[0]].priority){
+    throw new Error("Matched two things at " + inputStream.str + " with " + JSON.stringify(maybeDuplicates.slice(0,2).map(v => getRegexLhs(regexTable, v.key))));
+  }
   if (maybeDuplicates.length === 0) {
     if (inputStream.str.match(/^\s+/)) {
       inputStream.str = inputStream.str.replace(/^\s+/, '');
