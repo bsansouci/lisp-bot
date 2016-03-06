@@ -9,7 +9,7 @@ var globalScopeDB = db.child("globalScope");
 var allStackFramesDB = db.child("allStackFrames");
 var allMacrosDB = db.child("allMacros");
 
-function startBot(api, globalScope, allStackFrames, allMacros) {
+function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
   var currentUsername;
   var currentUserId;
   var currentThreadId;
@@ -18,6 +18,10 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
   var currentOtherIds;
   var currentStackFrame;
   var currentMacros;
+  var currentRuleList;
+
+  // Loaded globally
+  lisp.evaluate(lisp.parse("(load parser)"));
 
   lisp.addFunction("listen", function (utils){
     return function(args, charPos){
@@ -112,8 +116,12 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 
     allStackFrames[currentThreadId] = allStackFrames[currentThreadId] || {};
     currentStackFrame = allStackFrames[currentThreadId];
+
     allMacros[currentThreadId] = allMacros[currentThreadId] || {};
     currentMacros = allMacros[currentThreadId];
+
+    // allRuleLists[currentThreadId] = allRuleLists[currentThreadId] || {};
+    currentRuleList = allRuleLists[currentThreadId];
 
     parseLisp(message, callback, newThread);
   }
@@ -133,7 +141,6 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
     var outTxt = "";
     if (inTxt.length > 0) {
       try {
-        var AST = lisp.parse(inTxt);
         var availableNodes = {};
         Object.keys(globalScope).forEach(function(uuid) {
           availableNodes[uuid] = globalScope[uuid].node;
@@ -141,12 +148,13 @@ function startBot(api, globalScope, allStackFrames, allMacros) {
 
         var output;
         if (newThread) {
-          var defaultVars = lisp.evaluateWith(lisp.parse("(load std-lib)"), currentStackFrame, currentMacros, availableNodes);
-          defaultVars = lisp.evaluateWith(lisp.parse("(load bot-lib)"), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
-          output = lisp.evaluateWith(AST, defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap);
+          var defaultVars = lisp.evaluateWith(lisp.parseWith("(load std-lib)", currentRuleList), currentStackFrame, currentMacros, availableNodes, currentRuleList);
+          defaultVars = lisp.evaluateWith(lisp.parseWith("(load bot-lib)", currentRuleList), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap, defaultVars.newRuleList);
+          output = lisp.evaluateWith(lisp.parseWith(inTxt, currentRuleList), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap, defaultVars.newRuleList);
         } else {
-          output = lisp.evaluateWith(AST, currentStackFrame, currentMacros, availableNodes);
+          output = lisp.evaluateWith(lisp.parseWith(inTxt, currentRuleList), currentStackFrame, currentMacros, availableNodes, currentRuleList);
         }
+
 
         Object.keys(output.newStackFrame).forEach(function(identifier) {
           var uuid = output.newStackFrame[identifier];
@@ -224,7 +232,9 @@ db.once('value', function(snapshot) {
   var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
   login(config, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
-    Object.keys(data.globalScope).forEach(k => replaceUndefinedList(data.globalScope[k]));
-    startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allMacros || {});
+    if (data.globalScope) {
+      Object.keys(data.globalScope).forEach(k => replaceUndefinedList(data.globalScope[k]));
+    }
+    startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allMacros || {}, data.allRuleLists || {});
   });
 });
