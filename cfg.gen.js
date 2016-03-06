@@ -555,22 +555,10 @@ module.exports = {
             "src": "",
             "value": [{
               "src": "",
-              "value": "\"",
-              "type": "string",
-              "charPos": 274,
-              "uuid": "9f63b43c-05a1-a2c4-89c4-f6ff0178b584"
-            }, {
-              "src": "",
-              "value": "([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*",
+              "value": "\"(\\\\.|[^\\\\\"])*\"",
               "type": "string",
               "charPos": 281,
               "uuid": "171f9b42-c8b8-b9c6-2e4c-dfc4caf42a67"
-            }, {
-              "src": "",
-              "value": "\"",
-              "type": "string",
-              "charPos": 290,
-              "uuid": "9a18d1fa-bfd0-8524-423d-48d7289be8a4"
             }],
             "type": "list",
             "charPos": 273,
@@ -587,22 +575,10 @@ module.exports = {
               "src": "",
               "value": [{
                 "src": "",
-                "value": "_",
-                "type": "identifier",
-                "charPos": 308,
-                "uuid": "8c609a19-335c-63ed-cbf7-499f546fb5f3"
-              }, {
-                "src": "",
                 "value": "x",
                 "type": "identifier",
                 "charPos": 309,
                 "uuid": "b7a4f286-0c19-4b77-fa76-f776dd9bdeae"
-              }, {
-                "src": "",
-                "value": "_",
-                "type": "identifier",
-                "charPos": 311,
-                "uuid": "7fbb419d-429a-cc39-68d0-218fa248742b"
               }],
               "type": "list",
               "charPos": 307,
@@ -633,7 +609,7 @@ module.exports = {
             "src": "",
             "value": [{
               "src": "",
-              "value": "\\-?\\d*\\.?\\d*e?\\-?\\d+",
+              "value": "\\-?\\d+\\.?\\d*(?:e\\-?\\d+)?",
               "type": "string",
               "charPos": 335,
               "uuid": "5ad41185-fe23-c9db-e404-4940383b5f81"
@@ -723,7 +699,7 @@ module.exports = {
             "src": "",
             "value": [{
               "src": "",
-              "value": "(?!true|false)[^ \"()0-9~'`]+[^ \"()]*",
+              "value": "(?!true|false|\\-?\\d+\\.?\\d*(?:e\\-?\\d+)?)[^ \"()0-9~'`]+[^ \"()]*",
               "type": "string",
               "charPos": 564,
               "uuid": "c4e7fc2b-52a5-e646-2cd0-60ba7840461c"
