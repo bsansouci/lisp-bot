@@ -4,6 +4,10 @@ var fs = require("fs");
 
 var sourceString = "";
 var LOADING = false;
+var localStack = [{}];
+var macroStack = [{}];
+var uuidToNodeMap = {};
+var reservedUuids = {};
 
 function makeParser(ruleList) {
   const parser = require('./parser');
@@ -88,19 +92,25 @@ function evalLambda(func, args, charPos, funcName) {
   }
 
   var map = {};
+  var addedToUuidToNodeMap = [];
 
   // This is so we don't add "..."
   var length = argNames.length - (variadicArgs ? 1 : 0);
   for (var i = 0; i < length; i++) {
     var node = args[i] ? args[i] : makeArr(charPos);
-    uuidToNodeMap[node.uuid] = node;
+    if (!uuidToNodeMap[node.uuid]) {
+      uuidToNodeMap[node.uuid] = node;
+      addedToUuidToNodeMap.push(node.uuid);
+    }
     map[argNames[i].value] = node.uuid;
   }
 
   if(variadicArgs) {
     var node = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
-
-    uuidToNodeMap[node.uuid] = node;
+    if (!uuidToNodeMap[node.uuid]) {
+      uuidToNodeMap[node.uuid] = node;
+      addedToUuidToNodeMap.push(node.uuid);
+    }
     map[argNames[argNames.length - 2].value] = node.uuid;
   }
 
@@ -111,6 +121,14 @@ function evalLambda(func, args, charPos, funcName) {
     var result = evaluate(func.value);
     localStack.pop();
     macroStack.pop();
+    addedToUuidToNodeMap.forEach(uuid => {
+      if (!reservedUuids[uuid]) {
+        delete uuidToNodeMap[uuid];
+      }
+    });
+    if (localStack.length === 1) {
+      reservedUuids = {};
+    }
     return result;
   } catch(e) {
     var savedStack = localStack.pop();
@@ -240,10 +258,6 @@ function checkNumArgs(charPos, args, num) {
   }
 }
 
-var localStack = [{}];
-var macroStack = [{}];
-var uuidToNodeMap = {};
-
 var macroTable = {
   "docs": function(args, charPos) {
     checkNumArgs(charPos, args, 1);
@@ -349,7 +363,6 @@ var macroTable = {
     }
 
     var body = args[1];
-
     var allIdentifiers = findAllIdentifiers(body);
     var topStack = localStack[localStack.length - 1];
     var topMacros = macroStack[macroStack.length - 1];
@@ -358,22 +371,21 @@ var macroTable = {
     allIdentifiers.forEach(function(v) {
       if (topStack[v]) {
         newScope[v] = topStack[v];
-      }
-
-      if (topMacros[v]) {
+        reservedUuids[topStack[v]] = true;
+      } else if (topMacros[v]) {
         newMacroScope[v] = topMacros[v];
+        reservedUuids[topMacros[v]] = true;
       }
-    })
+    });
 
-    var lambdaNode = new Node(body, "function", argNames.charPos,
-      {
-        scope: newScope,
-        macroScope: newMacroScope,
-        argNames: argNames
-      });
+    var lambdaNode = new Node(body, "function", argNames.charPos, {
+      scope: newScope,
+      macroScope: newMacroScope,
+      argNames: argNames
+    });
+
     lambdaNode.scope.recur = lambdaNode.uuid;
 
-    // uuidToNodeMap[lambdaNode.uuid] = lambdaNode;
     return lambdaNode;
   },
   "quote": function(args, charPos) {
