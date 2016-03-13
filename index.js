@@ -165,7 +165,17 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
           output = lisp.parseAndEvaluateWith(inTxt, context);
         }
 
+        outTxt = lisp.prettyPrint(output.res, output.uuidToNodeMap);
+        if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
+          outTxt = outTxt.substring(1,outTxt.length-1);
+        }
+      } catch (e) {
+        outTxt = e.toString();
+      }
 
+      sendReply({text: outTxt});
+
+      try {
         Object.keys(output.stackFrame).forEach(function(identifier) {
           var uuid = output.stackFrame[identifier];
           var node = output.uuidToNodeMap[uuid];
@@ -201,23 +211,14 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
             isMacro: !!node.isMacro,
           };
         });
-        outTxt = lisp.prettyPrint(output.res, output.uuidToNodeMap);
+
+        globalScopeDB.set(globalScope);
+        allStackFramesDB.set(allStackFrames);
+        allMacrosDB.set(allMacros);
 
       } catch (e) {
-        outTxt = e.toString();
+        console.error('Error during data persist: `'+e+'`');
       }
-
-      globalScopeDB.set(globalScope);
-      allStackFramesDB.set(allStackFrames);
-      allMacrosDB.set(allMacros);
-
-      if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
-        outTxt = outTxt.substring(1,outTxt.length-1);
-      }
-
-      return sendReply({text: outTxt});
-    } else {
-      return null;
     }
   }
 }
