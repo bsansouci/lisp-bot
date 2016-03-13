@@ -822,19 +822,32 @@ function addMacro(name, func, docs) {
   }
 }
 
-function evaluateWith(toEval, context, macroContext, uuidContext, ruleList) {
+// ntext = {
+//   stackFrame: currentStackFrame,
+//   macros: currentMacros,
+//   uuidToNodeMap: availableNodes,
+//   ruleList: currentRuleList,
+// };
+
+function parseAndEvaluateWith(string, context) {
   var savedLocalStack0 = localStack[0];
   var savedMacroStack0 = macroStack[0];
   var savedGlobalRuleList = globalRuleList;
   var savedGlobalParser = globalParser;
   var savedUuidToNodeMap = uuidToNodeMap;
-  if (ruleList) {
-    globalRuleList = ruleList;
+
+  localStack = [context.stackFrame];
+  macroStack = [context.macros];
+  uuidToNodeMap = context.uuidToNodeMap;
+
+  if (context.ruleList) {
+    globalRuleList = context.ruleList;
+    if (!areStructurallyEqual(globalRuleList, savedGlobalRuleList)){
+      globalParser = makeParser(context.ruleList);
+    }
   }
 
-  localStack = [context];
-  macroStack = [macroContext];
-  uuidToNodeMap = uuidContext;
+  var toEval = parse(string);
   var res = evaluate(toEval);
 
   var newUuidToNodeMap = uuidToNodeMap;
@@ -850,10 +863,10 @@ function evaluateWith(toEval, context, macroContext, uuidContext, ruleList) {
 
   return {
     res: res,
-    newStackFrame: newStackFrame,
-    newMacros: newMacros,
-    newUuidToNodeMap: newUuidToNodeMap,
-    newRuleList: newRuleList,
+    stackFrame: newStackFrame,
+    macros: newMacros,
+    uuidToNodeMap: newUuidToNodeMap,
+    ruleList: newRuleList,
   };
 }
 
@@ -889,26 +902,16 @@ function findAllIdentifiers(ast) {
 
 var parse = str => globalParser(str);
 
-function parseWith(str, ruleList) {
-  if (ruleList && !areStructurallyEqual(ruleList, globalRuleList)) {
-    var parser = makeParser(ruleList);
-    return parser(str);
-  }
-
-  return globalParser(str);
-}
-
 module.exports = {
   evaluate: evaluate,
   prettyPrint: prettyPrint,
   addFunction: addFunction,
   addMacro: addMacro,
-  evaluateWith: evaluateWith,
+  parseAndEvaluateWith: parseAndEvaluateWith,
   evalLambda: evalLambda,
   toLispData: toLispData,
   quoteNode: quoteNode,
   parse: parse,
-  parseWith: parseWith,
 };
 
 var globalRuleList = require('./cfg.gen').value[2].value[2].value[1];

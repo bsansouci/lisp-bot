@@ -150,18 +150,25 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
         });
 
         var output;
+        var context = {
+          stackFrame: currentStackFrame,
+          macros: currentMacros,
+          uuidToNodeMap: availableNodes,
+          ruleList: currentRuleList,
+        };
+
         if (newThread) {
-          var defaultVars = lisp.evaluateWith(lisp.parseWith("(load std-lib)", currentRuleList), currentStackFrame, currentMacros, availableNodes, currentRuleList);
-          defaultVars = lisp.evaluateWith(lisp.parseWith("(load bot-lib)", currentRuleList), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap, defaultVars.newRuleList);
-          output = lisp.evaluateWith(lisp.parseWith(inTxt, currentRuleList), defaultVars.newStackFrame, defaultVars.newMacros, defaultVars.newUuidToNodeMap, defaultVars.newRuleList);
+          var defaultVars = lisp.parseAndEvaluateWith("(load std-lib)", context);
+          defaultVars = lisp.parseAndEvaluateWith("(load bot-lib)", defaultVars);
+          output = lisp.parseAndEvaluateWith(inTxt, defaultVars);
         } else {
-          output = lisp.evaluateWith(lisp.parseWith(inTxt, currentRuleList), currentStackFrame, currentMacros, availableNodes, currentRuleList);
+          output = lisp.parseAndEvaluateWith(inTxt, context);
         }
 
 
-        Object.keys(output.newStackFrame).forEach(function(identifier) {
-          var uuid = output.newStackFrame[identifier];
-          var node = output.newUuidToNodeMap[uuid];
+        Object.keys(output.stackFrame).forEach(function(identifier) {
+          var uuid = output.stackFrame[identifier];
+          var node = output.uuidToNodeMap[uuid];
           var writePermissions = [currentThreadId];
           if(globalScope[uuid] && globalScope[uuid].writePermissions) {
             writePermissions = globalScope[uuid].writePermissions;
@@ -175,9 +182,9 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
           currentStackFrame[identifier] = uuid;
         });
 
-        Object.keys(output.newMacros).forEach(function(identifier) {
-          var uuid = output.newMacros[identifier];
-          var node = output.newUuidToNodeMap[uuid];
+        Object.keys(output.macros).forEach(function(identifier) {
+          var uuid = output.macros[identifier];
+          var node = output.uuidToNodeMap[uuid];
           globalScope[uuid] = {
             node: node,
             isMacro: true,
@@ -186,16 +193,16 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
           currentMacros[identifier] = uuid;
         });
 
-        Object.keys(output.newUuidToNodeMap).forEach(function(uuid) {
-          var node = output.newUuidToNodeMap[uuid];
+        Object.keys(output.uuidToNodeMap).forEach(function(uuid) {
+          var node = output.uuidToNodeMap[uuid];
 
           globalScope[uuid] = {
             node: typeof node !== 'string' ? JSON.stringify(RJSON.pack(node)) : node,
             isMacro: !!node.isMacro,
           };
         });
+        outTxt = lisp.prettyPrint(output.res, output.uuidToNodeMap);
 
-        outTxt = lisp.prettyPrint(output.res, output.newUuidToNodeMap);
       } catch (e) {
         outTxt = e.toString();
       }
