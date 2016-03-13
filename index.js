@@ -3,8 +3,11 @@
 var login = require("facebook-chat-api");
 var lisp = require("./lisp");
 var Firebase = require("firebase");
+var RJSON = require("rjson");
 
-var db = new Firebase(process.env.LISP_BOT_FIREBASE);
+var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
+
+var db = new Firebase(config.firebase);
 var globalScopeDB = db.child("globalScope");
 var allStackFramesDB = db.child("allStackFrames");
 var allMacrosDB = db.child("allMacros");
@@ -187,7 +190,7 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
           var node = output.newUuidToNodeMap[uuid];
 
           globalScope[uuid] = {
-            node: node,
+            node: typeof node !== 'string' ? JSON.stringify(RJSON.pack(node)) : node,
             isMacro: !!node.isMacro,
           };
         });
@@ -229,7 +232,6 @@ function replaceUndefinedList(node){
 // Main function
 db.once('value', function(snapshot) {
   var data = snapshot.val() || {};
-  var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
   login(config, {forceLogin: true}, function(err, api) {
     if(err) return console.error(err);
     if (data.globalScope) {

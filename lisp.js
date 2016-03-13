@@ -1,6 +1,7 @@
 /*jslint node: true */
 "use strict";
 var fs = require("fs");
+var RJSON = require("rjson");
 
 var sourceString = "";
 var LOADING = false;
@@ -109,6 +110,7 @@ function evalLambda(func, args, charPos, funcName) {
     var node = makeArr.apply(null, [charPos].concat(args.slice(argNames.length - 2)));
     if (!uuidToNodeMap[node.uuid]) {
       uuidToNodeMap[node.uuid] = node;
+
       addedToUuidToNodeMap.push(node.uuid);
     }
     map[argNames[argNames.length - 2].value] = node.uuid;
@@ -156,6 +158,9 @@ function getLocal(stack, name) {
     throw new Error("Couldn't find node of " + name + " with uuid " + uuid + ".");
   }
   if(uuid != null && uuidToNodeMap.hasOwnProperty(uuid)) {
+    if (typeof uuidToNodeMap[uuid] === 'string'){
+      uuidToNodeMap[uuid] = RJSON.unpack(JSON.parse(uuidToNodeMap[uuid]));
+    }
     return uuidToNodeMap[uuid];
   }
 
@@ -265,19 +270,17 @@ var macroTable = {
       throwError("Only identifiers can have docs.");
     }
 
-    if (symbolTable[args[0].value] && symbolTable[args[0].value].docs){
-      return new Node(symbolTable[args[0].value].docs, "string", args[0].charPos);
-    } else if (symbolTable[args[0].value]){
-      return new Node("Built-in function.", "string", args[0].charPos);
+    if (symbolTable[args[0].value]){
+      return new Node(symbolTable[args[0].value].docs || "Built-in function.", "string", args[0].charPos);
     } else if (macroTable[args[0].value]){
-      return new Node("Built-in macro.", "string", args[0].charPos);
+      return new Node(macroTable[args[0].value].docs || "Built-in macro.", "string", args[0].charPos);
     }
 
     var maybeMacro = getLocal(macroStack, args[0].value);
-    if(maybeMacro) return new Node(maybeMacro.docs, "string", args[0].charPos);
+    if(maybeMacro) return new Node(maybeMacro.docs || "No docs.", "string", args[0].charPos);
 
     var maybeFunc = getLocal(localStack, args[0].value);
-    if(maybeFunc) return new Node(maybeFunc.docs, "string", args[0].charPos);
+    if(maybeFunc) return new Node(maybeFunc.docs || "No docs.", "string", args[0].charPos);
 
     throwError("Undefined identifier '"+args[0].value+"'.", charPos);
   },
@@ -296,7 +299,7 @@ var macroTable = {
     if(symbolTable.hasOwnProperty(name.value) || macroTable.hasOwnProperty(name.value)) throwError("Reserved, can't redefine " + name.value, name);
 
     var body = args[1];
-    var docs = "No docs";
+    var docs = null;
     // Adding optional comments when defining functions
     if(body.type === "string" && args.length === 3) {
       docs = body.value;
@@ -320,7 +323,9 @@ var macroTable = {
     var res = evaluate(body);
 
     // Attach the docs to the object inside the localStack
-    res.docs = docs;
+    if (docs){
+      res.docs = docs;
+    }
 
     // If the node res is a function, add itself to the scope so it can recurse
     if(res.type === 'function') {

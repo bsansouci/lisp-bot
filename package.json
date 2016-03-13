@@ -24,7 +24,8 @@
   "dependencies": {
     "facebook-chat-api": "git://github.com/schmavery/facebook-chat-api",
     "firebase": "^2.2.4",
-    "request": "~2.53.0"
+    "request": "~2.53.0",
+    "rjson": "^0.2.4"
   },
   "devDependencies": {
     "mocha": "^2.3.4"
