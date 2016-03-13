@@ -142,10 +142,13 @@ function evalLambda(func, args, charPos, funcName) {
 function stackTrace(error, funcName){
   if (typeof funcName === "object") {
     funcName = "[Anonymous lambda]";
+  } else if (!funcName || typeof funcName === 'function'){
+    funcName = "[Native function]";
   }
+
   var errorLen = error.message.split("\n").length;
   if (errorLen < 15)
-    return new Error(error.message+"\nin function: "+(funcName || "[Native function]"));
+    return new Error(error.message+"\nin function: "+funcName);
   else if (errorLen == 15)
     return new Error(error.message+"\n...");
   else
