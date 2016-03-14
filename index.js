@@ -11,9 +11,9 @@ var db = new Firebase(config.firebase);
 var globalScopeDB = db.child("globalScope");
 var allStackFramesDB = db.child("allStackFrames");
 var allMacrosDB = db.child("allMacros");
+var allRuleListsDB = db.child("allRuleLists");
 
 function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
-  var currentUsername;
   var currentUserId;
   var currentThreadId;
   var currentChat;
@@ -91,7 +91,7 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
 
     if(event.type === 'message') {
       console.log("Received ->", event);
-      read(event.body, event.senderName.split(' ')[0], event.threadID, event.senderID, event.participantNames, event.participantIDs, function(msg) {
+      read(event.body, event.threadID, event.senderID, event.participantNames, event.participantIDs, function(msg) {
         if(!msg) return;
         if(msg.text && msg.text.length > 0) {
           console.log("Sending ->", msg, msg.text.length, event.threadID);
@@ -102,8 +102,8 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
   });
 
 
-  // messages, username, chat id are Strings, otherUsernames is array of Strings
-  function read(message, username, threadID, userId, otherUsernames, otherIds, callback) {
+  // messages, chat id are Strings, otherUsernames is array of Strings
+  function read(message, threadID, userId, otherUsernames, otherIds, callback) {
     // Default chat object or existing one
     // And set the global object
     //if (!currentChat.existingChat){
@@ -112,7 +112,6 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
     //}
     currentThreadId = threadID;
     currentUserId = userId;
-    currentUsername = username;
     currentOtherUsernames = otherUsernames;
 
     var newThread = !(allStackFrames[currentThreadId] || allMacros[currentThreadId]);
@@ -123,8 +122,11 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
     allMacros[currentThreadId] = allMacros[currentThreadId] || {};
     currentMacros = allMacros[currentThreadId];
 
-    // allRuleLists[currentThreadId] = allRuleLists[currentThreadId] || {};
-    currentRuleList = allRuleLists[currentThreadId];
+    if (allRuleLists[currentThreadId] != null) {
+      currentRuleList = RJSON.unpack(JSON.parse(allRuleLists[currentThreadId]));
+    } else {
+      allRuleLists[currentThreadId] = {};
+    }
 
     parseLisp(message, callback, newThread);
   }
@@ -212,9 +214,13 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
           };
         });
 
+        // Update allRuleLists with the new one
+        allRuleLists[currentThreadId] = JSON.stringify(RJSON.pack(output.ruleList));
+
         globalScopeDB.set(globalScope);
         allStackFramesDB.set(allStackFrames);
         allMacrosDB.set(allMacros);
+        allRuleListsDB.set(allRuleLists);
 
       } catch (e) {
         console.error('Error during data persist: `'+e+'`');
