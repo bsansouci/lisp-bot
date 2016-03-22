@@ -204,6 +204,10 @@ function pprintTable(regexTable, table) {
   return table.map(pprintRow.bind(null, regexTable)).join("\n");
 }
 
+function pprintItem(regexTable, item){
+  return `(${item.rule}, ${getRegexLhs(regexTable, item.lookahead)}, ${item.dotPos})`;
+}
+
 function find(list, pred){
   for (var i = 0; i < list.length; i++) {
     value = list[i];
@@ -213,7 +217,7 @@ function find(list, pred){
   }
 }
 
-function makeTable(rules) {
+function makeTable(rules, regexTable) {
   var startRule = rules.filter(function(v) {
     return v.lhs === 'start-token';
   })[0];
@@ -296,7 +300,7 @@ function makeTable(rules) {
               });
             }
           } else {
-            if (curState.actions[curToken] && curState.actions[curToken].type !== "shift") throw new Error("Conflict detected: shift/" + curState.actions[curToken].type + " ---- " + JSON.stringify(item) + "/"+ JSON.stringify(curState.actions[curToken].item));
+            if (curState.actions[curToken] && curState.actions[curToken].type !== "shift") throw new Error("Conflict detected: shift/" + curState.actions[curToken].type + " ---- " + pprintItem(regexTable, item) + "/"+ pprintItem(regexTable, curState.actions[curToken].item));
             if (maybePreviousState != null) {
               curState.actions[curToken] = {
                 type: "shift",
@@ -380,9 +384,12 @@ function findMatch(inputStream, tokens, regexTable) {
       longestMatch = match;
     }
   });
-
   var maybeDuplicates = matches.filter(match => match.value.length === longestMatch.value.length);
-  maybeDuplicates = maybeDuplicates.sort((i1, i2) => regexTable[i1.key].priority - regexTable[i2.key].priority);
+
+  if (maybeDuplicates.length > 1){
+    maybeDuplicates = maybeDuplicates.sort((i1, i2) => regexTable[i1.key].priority - regexTable[i2.key].priority);
+  }
+
   if (maybeDuplicates.length > 1 && regexTable[maybeDuplicates[0]].priority === regexTable[maybeDuplicates[0]].priority){
     throw new Error("Matched two things at " + inputStream.str + " with " + JSON.stringify(maybeDuplicates.slice(0,2).map(v => getRegexLhs(regexTable, v.key))));
   }
@@ -473,3 +480,6 @@ module.exports = {
 // // console.log(pprintTable(regexTable, table));
 // var test = parse(table, regexTable, ruleTable, "(define core (lambda () (quote ((start-token (expr) (lambda (x) x)) (expr (list-token) (lambda (x) x) (atom-token) (lambda (x) x)) (list-token (\"\\(\" expr-list \"\\)\") (lambda (_ x _) x) (\"\\(\" \"\\)\") (lambda (_ _) (quote ()))) (atom-token (\"\\-?\\d*\\.?\\d*e?\\-?\\d+\") parse-int (\"[^ ()0-9]+[^ ()]*\") parse-identifier (\"\\\"([^\\\"\\\\\\n]|(\\\\\\\\)*\\\\\\\"|\\\\[^\\\"\\n])*\\\"\") parse-string (\"true|false\") parse-boolean) (expr-list (expr-list expr) (lambda (coll e) (cons e coll)) (expr) (lambda (args ...) args))))))");
 // console.log(lisp.prettyPrint(test.value));
+//
+// (edit-parser (lambda (rule-list add-to)
+//   (add-to rule-list '(expr (expr "->" expr) (lambda (args _ e) `(lambda ~args ~e))))))

@@ -10,17 +10,15 @@ var config = JSON.parse(require('fs').readFileSync('config.json', 'utf8'));
 var db = new Firebase(config.firebase);
 var globalScopeDB = db.child("globalScope");
 var allStackFramesDB = db.child("allStackFrames");
-var allMacrosDB = db.child("allMacros");
 var allRuleListsDB = db.child("allRuleLists");
 
-function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
+function startBot(api, globalScope, allStackFrames, allRuleLists) {
   var currentUserId;
   var currentThreadId;
   var currentChat;
   var currentOtherUsernames;
   var currentOtherIds;
   var currentStackFrame;
-  var currentMacros;
   var currentRuleList;
 
   // Loaded globally
@@ -63,27 +61,26 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
   lisp.addFunction("clear-namespace", function(utils) {
     return function(args, charPos) {
       delete allStackFrames[currentThreadId];
-      delete allMacros[currentThreadId];
       return utils.toLispData("Namespace cleared");
     };
   }, "Will delete all user-defined values.");
 
-  lisp.addMacro("define-with-default", function(utils) {
-    return function(args, charPos) {
-      utils.checkNumArgs(charPos, args, 2);
-      if(args[0].type !== 'identifier') utils.throwError("First argument to define-with-default should be an identifier.", args[0]);
-
-      if(currentStackFrame[args[0].value]) {
-        return globalScope[currentStackFrame[args[0].value]].node;
-      }
-
-      return lisp.evaluate(utils.makeArr(charPos,
-        new utils.Node("define", "identifier", charPos),
-        new utils.Node(args[0].value, "identifier", charPos),
-        lisp.evaluate(args[1])
-      ));
-    };
-  }, "Will define only if that identifier isn't already defined in the scope (aka loaded from the DB).");
+  // lisp.addMacro("define-with-default", function(utils) {
+  //   return function(args, charPos) {
+  //     utils.checkNumArgs(charPos, args, 2);
+  //     if(args[0].type !== 'identifier') utils.throwError("First argument to define-with-default should be an identifier.", args[0]);
+  //
+  //     if(currentStackFrame[args[0].value]) {
+  //       return globalScope[currentStackFrame[args[0].value]].node;
+  //     }
+  //
+  //     return lisp.evaluate(utils.makeArr(charPos,
+  //       new utils.Node("define", "identifier", charPos),
+  //       new utils.Node(args[0].value, "identifier", charPos),
+  //       lisp.evaluate(args[1])
+  //     ));
+  //   };
+  // }, "Will define only if that identifier isn't already defined in the scope (aka loaded from the DB).");
 
   // Main method
   var stopListening = api.listen(function(err, event) {
@@ -114,13 +111,10 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
     currentUserId = userId;
     currentOtherUsernames = otherUsernames;
 
-    var newThread = !(allStackFrames[currentThreadId] || allMacros[currentThreadId]);
+    var newThread = !allStackFrames[currentThreadId] || allStackFrames[currentThreadId].length == 0;
 
     allStackFrames[currentThreadId] = allStackFrames[currentThreadId] || {};
     currentStackFrame = allStackFrames[currentThreadId];
-
-    allMacros[currentThreadId] = allMacros[currentThreadId] || {};
-    currentMacros = allMacros[currentThreadId];
 
     if (allRuleLists[currentThreadId] != null) {
       currentRuleList = RJSON.unpack(JSON.parse(allRuleLists[currentThreadId]));
@@ -135,11 +129,9 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
 
     var inTxt = "";
 
-    if ((/^\/\(.+\)$/).test(msg)){
-      inTxt = msg.slice(1);
-    } else if ((/^\/.+/).test(msg)){
+    if ((/^\/[\S\s]+/m).test(msg)){
       inTxt = "(" + msg.slice(1) + ")";
-    } else if ((/^\(.+\)/).test(msg)){
+    } else if ((/^\([\S\s]+\)/m).test(msg)){
       inTxt = msg;
     }
 
@@ -154,7 +146,6 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
         var output;
         var context = {
           stackFrame: currentStackFrame,
-          macros: currentMacros,
           uuidToNodeMap: availableNodes,
           ruleList: currentRuleList,
         };
@@ -168,49 +159,39 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
         }
 
         outTxt = lisp.prettyPrint(output.res, output.uuidToNodeMap);
-        if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
-          outTxt = outTxt.substring(1,outTxt.length-1);
+
+        if (outTxt.length > 0) {
+          if (outTxt[0] == '"' && outTxt[outTxt.length-1] == '"') {
+            outTxt = outTxt.substring(1,outTxt.length-1);
+          }
+          sendReply({text: outTxt});
         }
       } catch (e) {
         outTxt = e.toString();
+        sendReply({text: outTxt});
+        return;
       }
 
-      sendReply({text: outTxt});
 
       try {
         Object.keys(output.stackFrame).forEach(function(identifier) {
           var uuid = output.stackFrame[identifier];
           var node = output.uuidToNodeMap[uuid];
-          var writePermissions = [currentThreadId];
-          if(globalScope[uuid] && globalScope[uuid].writePermissions) {
-            writePermissions = globalScope[uuid].writePermissions;
-          }
-          globalScope[uuid] = {
-            node: node,
-            writePermissions: node.type === 'ref' ? writePermissions : null,
-            isMacro: false,
-          };
 
           currentStackFrame[identifier] = uuid;
-        });
-
-        Object.keys(output.macros).forEach(function(identifier) {
-          var uuid = output.macros[identifier];
-          var node = output.uuidToNodeMap[uuid];
-          globalScope[uuid] = {
-            node: node,
-            isMacro: true,
-          };
-
-          currentMacros[identifier] = uuid;
         });
 
         Object.keys(output.uuidToNodeMap).forEach(function(uuid) {
           var node = output.uuidToNodeMap[uuid];
 
+          var writePermissions = [currentThreadId];
+          if(globalScope[uuid] && globalScope[uuid].writePermissions) {
+            writePermissions = globalScope[uuid].writePermissions;
+          }
+
           globalScope[uuid] = {
             node: typeof node !== 'string' ? JSON.stringify(RJSON.pack(node)) : node,
-            isMacro: !!node.isMacro,
+            writePermissions: node.type === 'ref' ? writePermissions : null,
           };
         });
 
@@ -219,7 +200,6 @@ function startBot(api, globalScope, allStackFrames, allMacros, allRuleLists) {
 
         globalScopeDB.set(globalScope);
         allStackFramesDB.set(allStackFrames);
-        allMacrosDB.set(allMacros);
         allRuleListsDB.set(allRuleLists);
 
       } catch (e) {
@@ -238,7 +218,6 @@ function replaceUndefinedList(node){
     case 'function':
       node.argNames = node.argNames || [];
       node.scope = node.scope || {};
-      node.macroScope = node.macroScope || {}
       break;
   }
 }
@@ -251,6 +230,6 @@ db.once('value', function(snapshot) {
     if (data.globalScope) {
       Object.keys(data.globalScope).forEach(k => replaceUndefinedList(data.globalScope[k]));
     }
-    startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allMacros || {}, data.allRuleLists || {});
+    startBot(api, data.globalScope || {}, data.allStackFrames || {}, data.allRuleLists || {});
   });
 });

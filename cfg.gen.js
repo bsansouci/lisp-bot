@@ -699,7 +699,7 @@ module.exports = {
             "src": "",
             "value": [{
               "src": "",
-              "value": "(?!true|false|\\-?\\d+\\.?\\d*(?:e\\-?\\d+)?)[^ \"()0-9~'`]+[^ \"()]*",
+              "value": "(?!true|false|->|\\-?\\d+\\.?\\d*(?:e\\-?\\d+)?)[^ \"()0-9~'`\\n]+[^ \"()\\n]*",
               "type": "string",
               "charPos": 564,
               "uuid": "c4e7fc2b-52a5-e646-2cd0-60ba7840461c"

@@ -6,7 +6,6 @@ var RJSON = require("rjson");
 var sourceString = "";
 var LOADING = false;
 var localStack = [{}];
-var macroStack = [{}];
 var uuidToNodeMap = {};
 var reservedUuids = {};
 
@@ -15,7 +14,7 @@ function makeParser(ruleList) {
   const rules = parser.makeRules(ruleList);
   const ruleTable = rules[0];
   const regexTable = rules[1];
-  const table = parser.makeTable(ruleTable);
+  const table = parser.makeTable(ruleTable, regexTable);
   return str => {
     const maybeAST = parser.parse(table, regexTable, ruleTable, str);
     if (!maybeAST.success) {
@@ -35,9 +34,6 @@ function evaluate(ast) {
     }
     var maybeLocal = getLocal(localStack, ast.value);
     if(maybeLocal != null) return maybeLocal;
-
-    var maybeMacro = getLocal(macroStack, ast.value);
-    if(maybeMacro != null) return maybeMacro;
 
     if(symbolTable.hasOwnProperty(ast.value)) return new Node(symbolTable[ast.value], "function", ast.charPos);
     if(macroTable.hasOwnProperty(ast.value)) {
@@ -73,15 +69,12 @@ function evalLambda(func, args, charPos, funcName) {
   // Native functions/macros
   if(typeof func.value === 'function') {
     localStack.push(Object.assign({}, localStack[localStack.length - 1]));
-    macroStack.push(Object.assign({}, macroStack[macroStack.length - 1]));
     try {
       var ret = func.value(args, charPos);
       localStack.pop();
-      macroStack.pop();
       return ret;
     } catch(e) {
       localStack.pop();
-      macroStack.pop();
       throw stackTrace(e, funcName);
     }
   }
@@ -118,11 +111,9 @@ function evalLambda(func, args, charPos, funcName) {
 
   // create a new scope for that function
   localStack.push(Object.assign({}, func.scope, map));
-  macroStack.push(Object.assign({}, func.macroScope));
   try {
     var result = evaluate(func.value);
     localStack.pop();
-    macroStack.pop();
     addedToUuidToNodeMap.forEach(uuid => {
       if (!reservedUuids[uuid]) {
         delete uuidToNodeMap[uuid];
@@ -134,7 +125,6 @@ function evalLambda(func, args, charPos, funcName) {
     return result;
   } catch(e) {
     var savedStack = localStack.pop();
-    var savedMacro = macroStack.pop();
     throw stackTrace(e, funcName);
   }
 }
@@ -279,9 +269,6 @@ var macroTable = {
       return new Node(macroTable[args[0].value].docs || "Built-in macro.", "string", args[0].charPos);
     }
 
-    var maybeMacro = getLocal(macroStack, args[0].value);
-    if(maybeMacro) return new Node(maybeMacro.docs || "No docs.", "string", args[0].charPos);
-
     var maybeFunc = getLocal(localStack, args[0].value);
     if(maybeFunc) return new Node(maybeFunc.docs || "No docs.", "string", args[0].charPos);
 
@@ -294,7 +281,7 @@ var macroTable = {
 
     var name = args[0];
     if(name.type !== "identifier") {
-      return throwError("First argument to define isn't an identifier", name);
+      return throwError("First argument to define isn't an identifier, got `"+name.type+"` instead.", name);
     }
 
     if (localStack.length > 2 + LOADING) throwError("Define can only be called from the top-level scope.", charPos);
@@ -348,7 +335,7 @@ var macroTable = {
 
     var name = args[0];
     if(name.type !== "identifier") {
-      return throwError("First argument to define-once isn't an identifier", name);
+      return throwError("First argument to define-once isn't an identifier, got `"+name.type+"` instead.", name);
     }
 
     if (localStack.length > 2 + LOADING) throwError("Define-once can only be called from the top-level scope.", charPos);
@@ -373,22 +360,16 @@ var macroTable = {
     var body = args[1];
     var allIdentifiers = findAllIdentifiers(body);
     var topStack = localStack[localStack.length - 1];
-    var topMacros = macroStack[macroStack.length - 1];
     var newScope = {};
-    var newMacroScope = {};
     allIdentifiers.forEach(function(v) {
       if (topStack[v]) {
         newScope[v] = topStack[v];
         reservedUuids[topStack[v]] = true;
-      } else if (topMacros[v]) {
-        newMacroScope[v] = topMacros[v];
-        reservedUuids[topMacros[v]] = true;
       }
     });
 
     var lambdaNode = new Node(body, "function", argNames.charPos, {
       scope: newScope,
-      macroScope: newMacroScope,
       argNames: argNames
     });
 
@@ -411,7 +392,7 @@ var macroTable = {
 
     var name = args[0];
     if(name.type !== "identifier") {
-      return throwError("First argument to define-macro isn't an identifier", name);
+      return throwError("First argument to define-macro isn't an identifier, got `"+name.type+"` instead.", name);
     }
     if (localStack.length > 2 + LOADING) throwError("Define can only be called from the top-level scope.", charPos);
 
@@ -435,12 +416,12 @@ var macroTable = {
     // If the node evaledLambda is a function, add itself to the scope so it can
     // recurse
     if(evaledLambda.type === 'function') {
-      evaledLambda.macroScope[name.value] = evaledLambda.uuid;
+      evaledLambda.scope[name.value] = evaledLambda.uuid;
     }
 
     uuidToNodeMap[evaledLambda.uuid] = evaledLambda;
-    macroStack[0][name.value] = evaledLambda.uuid;
-    macroStack[1][name.value] = evaledLambda.uuid;
+    localStack[0][name.value] = evaledLambda.uuid;
+    localStack[1][name.value] = evaledLambda.uuid;
     return evaledLambda;
   },
   "syntax-quote": function(args, charPos) {
@@ -834,13 +815,11 @@ function addMacro(name, func, docs) {
 
 function parseAndEvaluateWith(string, context) {
   var savedLocalStack0 = localStack[0];
-  var savedMacroStack0 = macroStack[0];
   var savedGlobalRuleList = globalRuleList;
   var savedGlobalParser = globalParser;
   var savedUuidToNodeMap = uuidToNodeMap;
 
   localStack = [context.stackFrame];
-  macroStack = [context.macros];
   uuidToNodeMap = context.uuidToNodeMap;
 
   if (context.ruleList) {
@@ -855,19 +834,16 @@ function parseAndEvaluateWith(string, context) {
 
   var newUuidToNodeMap = uuidToNodeMap;
   var newStackFrame = localStack[0];
-  var newMacros = macroStack[0];
   var newRuleList = globalRuleList;
 
   uuidToNodeMap = savedUuidToNodeMap;
   localStack = [savedLocalStack0];
-  macroStack = [savedMacroStack0];
   globalParser = savedGlobalParser;
   globalRuleList = savedGlobalRuleList;
 
   return {
     res: res,
     stackFrame: newStackFrame,
-    macros: newMacros,
     uuidToNodeMap: newUuidToNodeMap,
     ruleList: newRuleList,
   };
