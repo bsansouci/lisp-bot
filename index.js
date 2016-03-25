@@ -117,7 +117,7 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
     currentStackFrame = allStackFrames[currentThreadId];
 
     if (allRuleLists[currentThreadId] != null) {
-      currentRuleList = RJSON.unpack(JSON.parse(allRuleLists[currentThreadId]));
+      currentRuleList = allRuleLists[currentThreadId] === "{}" ? {} : RJSON.unpack(JSON.parse(allRuleLists[currentThreadId]));
     } else {
       allRuleLists[currentThreadId] = {};
     }
@@ -169,9 +169,7 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
       } catch (e) {
         outTxt = e.toString();
         sendReply({text: outTxt});
-        return;
       }
-
 
       try {
         Object.keys(output.stackFrame).forEach(function(identifier) {
@@ -197,7 +195,6 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
 
         // Update allRuleLists with the new one
         allRuleLists[currentThreadId] = JSON.stringify(RJSON.pack(output.ruleList));
-
         globalScopeDB.set(globalScope);
         allStackFramesDB.set(allStackFrames);
         allRuleListsDB.set(allRuleLists);
