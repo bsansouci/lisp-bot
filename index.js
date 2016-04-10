@@ -92,7 +92,7 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
         if(!msg) return;
         if(msg.text && msg.text.length > 0) {
           console.log("Sending ->", msg, msg.text.length, event.threadID);
-          api.sendMessage(msg.text, event.threadID);
+          api.sendMessage("```scheme\n" + msg.text + "\n```", event.threadID);
         } else api.markAsRead(event.threadID);
       });
     }
