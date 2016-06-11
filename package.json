@@ -28,6 +28,9 @@
     "rjson": "^0.2.4"
   },
   "devDependencies": {
+    "babel-cli": "^6.9.0",
+    "babel-plugin-transform-flow-strip-types": "^6.8.0",
+    "flow-bin": "^0.26.0",
     "mocha": "^2.3.4"
   }
 }
