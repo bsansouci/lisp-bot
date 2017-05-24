@@ -15,6 +15,7 @@ var allRuleListsDB = db.child("allRuleLists");
 function startBot(api, globalScope, allStackFrames, allRuleLists) {
   var currentUserId;
   var currentThreadId;
+  var currentMessageID;
   var currentChat;
   var currentOtherUsernames;
   var currentOtherIds;
@@ -88,19 +89,31 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
 
     if(event.type === 'message') {
       console.log("Received ->", event);
-      read(event.body, event.threadID, event.senderID, event.participantNames, event.participantIDs, function(msg) {
-        if(!msg) return;
-        if(msg.text && msg.text.length > 0) {
-          console.log("Sending ->", msg, msg.text.length, event.threadID);
-          api.sendMessage("```scheme\n" + msg.text + "\n```", event.threadID);
-        } else api.markAsRead(event.threadID);
+      api.markAsRead(event.threadID);
+      api.getThreadInfo(event.threadID, function(err, thread) {
+        api.getUserInfo(thread.participantIDs, function(err, users) {
+          if (err) throw err;
+          var user = users[event.senderID];
+          var participantNames = [];
+          for (var id in users) {
+            participantNames.push(users[id].name);
+          }
+          read(event.body, event.threadID, event.senderID, participantNames, thread.participantIDs, event.messageID, function(msg) {
+            if(!msg) return;
+            if(msg.text && msg.text.length > 0) {
+              console.log("Sending ->", msg, msg.text.length, event.threadID);
+              // api.sendMessage("```scheme\n" + msg.text + "\n```", event.threadID);
+              api.sendMessage(msg.text, event.threadID);
+            }
+          });
+        });
       });
     }
   });
 
 
   // messages, chat id are Strings, otherUsernames is array of Strings
-  function read(message, threadID, userId, otherUsernames, otherIds, callback) {
+  function read(message, threadID, userId, otherUsernames, otherIds, messageID, callback) {
     // Default chat object or existing one
     // And set the global object
     //if (!currentChat.existingChat){
@@ -108,29 +121,32 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
     //  api.sendMessage("Hey, type '/help' for some useful commands!", threadID);
     //}
     currentThreadId = threadID;
+    currentMessageID = messageID;
     currentUserId = userId;
     currentOtherUsernames = otherUsernames;
 
-    var newThread = !allStackFrames[currentThreadId] || allStackFrames[currentThreadId].length == 0;
+    var newThread = !allStackFrames[currentThreadId] || Object.keys(allStackFrames[currentThreadId]).length == 0;
 
     allStackFrames[currentThreadId] = allStackFrames[currentThreadId] || {};
     currentStackFrame = allStackFrames[currentThreadId];
 
     if (allRuleLists[currentThreadId] != null) {
-      currentRuleList = allRuleLists[currentThreadId] === "{}" ? {} : RJSON.unpack(JSON.parse(allRuleLists[currentThreadId]));
-    } else {
-      allRuleLists[currentThreadId] = {};
+      var parsedJSON = JSON.parse(allRuleLists[currentThreadId]);
+      currentRuleList = Object.keys(parsedJSON) === 0 ? {} : RJSON.unpack(parsedJSON);
     }
 
     parseLisp(message, callback, newThread);
   }
 
   function parseLisp(msg, sendReply, newThread) {
-
     var inTxt = "";
-
-    if ((/^\/[\S\s]+/m).test(msg)){
-      inTxt = "(" + msg.slice(1) + ")";
+    var shouldExposeExceptions = false;
+    if ((/^!\(/m).test(msg)) {
+      inTxt = msg.slice(1);
+      shouldExposeExceptions = true;
+    } else if ((/^\/[\S\s]+/m).test(msg)){
+      // inTxt = "(" + msg.slice(1) + ")";
+      return;
     } else if ((/^\([\S\s]+\)/m).test(msg)){
       inTxt = msg;
     }
@@ -149,6 +165,7 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
           uuidToNodeMap: availableNodes,
           ruleList: currentRuleList,
         };
+        console.log(newThread);
 
         if (newThread) {
           var defaultVars = lisp.parseAndEvaluateWith("(load std-lib)", context);
@@ -167,9 +184,15 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
           sendReply({text: outTxt});
         }
       } catch (e) {
-        outTxt = e.toString();
-        sendReply({text: outTxt});
+        if (!shouldExposeExceptions) {
+          api.setMessageReaction(":thumbsdown:", currentMessageID, console.error);
+        } else {
+          outTxt = e.toString();
+          sendReply({text: outTxt});
+        }
       }
+      // shortcut when output is null (this probably only happens when there's an error)
+      if (output == null) return;
 
       try {
         Object.keys(output.stackFrame).forEach(function(identifier) {
