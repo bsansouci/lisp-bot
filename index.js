@@ -90,7 +90,16 @@ function startBot(api, globalScope, allStackFrames, allRuleLists) {
     if(event.type === 'message') {
       console.log("Received ->", event);
       api.markAsRead(event.threadID);
-      api.getThreadInfo(event.threadID, function(err, thread) {
+      // Sigh. The api has changed and getThreadInfo doesn't work with Rose.
+      // We use getThreadList which returns the right info, but we assume that
+      // rose will not receive more than 5 messages in 5 different chats at the
+      // same time. getThreadList doesn't allow us to get thread information
+      // of one specific thread.
+      //           Ben - June 12th 2017
+      api.getThreadList(0, 5, function(err, threads) {
+        var thread = threads.filter(function(t) {
+          return t.threadID === event.threadID;
+        })[0];
         api.getUserInfo(thread.participantIDs, function(err, users) {
           if (err) throw err;
           var user = users[event.senderID];
